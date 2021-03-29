@@ -30,3 +30,8 @@
 *.exe
 *.out
 *.app
+test/*
+mc_result/*
+data/*
+!data/compact.py
+!data/init.sh
