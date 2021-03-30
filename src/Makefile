@@ -17,6 +17,5 @@ reorder: $(OBJECTS) reorder.cpp
 %.o: %.cpp %.hpp util.hpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-
 clean:
 	rm -rf mc reorder $(OBJECTS)

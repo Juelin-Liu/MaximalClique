@@ -56,13 +56,13 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
     root_start = a.start;
     root_offset = a.offset;
     root_deg = a.deg;
-    root_vector_size = get_vector_size(a.deg);
+    root_vector_size = get_vector_size<Bitmap>(a.deg);
     memset(matrix, 0, a.deg * root_vector_size * sizeof(Bitmap));
     for (int b_idx = 0; b_idx < a.deg; b_idx++)
     {
         const int b_id = pool_edges[a.start + b_idx];
         const QVertex &b = graph[b_id];
-        triangles += mark_intersect(pool_edges + a.start, a.deg,
+        triangles += mark_intersect_simd8x(pool_edges + a.start, a.deg,
                                     pool_edges + b.start, b.deg, &matrix[b_idx * root_vector_size]);
     }
     return triangles;
@@ -167,7 +167,7 @@ int LoiMaximalClique::maximal_clique_loi()
 {
 
 #define LOG(x) std::cout << x << std::endl
-    int buffer_vector_size = get_vector_size(max_deg);
+    int buffer_vector_size = get_vector_size<Bitmap>(max_deg);
     matrix = (Bitmap *)calloc(max_deg * buffer_vector_size, sizeof(Bitmap));
     clique_pool = (Bitmap *)calloc((max_deg + 1) * buffer_vector_size, sizeof(Bitmap));
     index_pool = (int *)calloc(max_deg * buffer_vector_size, sizeof(int));
@@ -183,7 +183,7 @@ int LoiMaximalClique::maximal_clique_loi()
         memset(clique_pool, 0xff, root_vector_size * sizeof(Bitmap));
         for (int v_index = u.offset; v_index < u.deg; v_index++)
         {
-            dfs_clz(v_index, 1);
+            dfs_avx2(v_index, 1);
         }
     }
 
@@ -216,16 +216,16 @@ void LoiMaximalClique::dfs_avx2(int v_index, int depth)
 
         // max_pool_sets_idx = std::max(max_pool_sets_idx, depth + 1);
         maximum_clique_size = std::max(maximum_clique_size, depth + 1);
-        // if (root_start == 0)
-        // {
-        //     LOG("id: " << id_vec[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
-        //     LOG("pool_edges: " << to_string(pool_edges + root_start, root_deg));
-        //     LOG("matrix: \n"
-        //         << matrix_to_string());
-        //     LOG("clique_pool: " << bitmap_to_string(get_clique(depth), root_vector_size));
-        //     LOG("index_vec: " << to_string(index_vec, depth + 1));
-        //     LOG("id_vec: " << to_string(id_vec, depth + 1) << "\n");
-        // }
+        if (root_start == 0)
+        {
+            LOG("id: " << id_vec[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
+            LOG("pool_edges: " << to_string(pool_edges + root_start, root_deg));
+            LOG("matrix: \n"
+                << matrix_to_string());
+            LOG("clique_pool: " << bitmap_to_string(get_clique(depth), root_vector_size));
+            LOG("index_vec: " << to_string(index_vec, depth + 1));
+            LOG("id_vec: " << to_string(id_vec, depth + 1) << "\n");
+        }
         return;
     }
     int num = expandToIndex(get_clique(depth), get_index_by_depth(depth), v_index + 1, root_deg);
@@ -250,16 +250,16 @@ void LoiMaximalClique::dfs_clz(int v_index, int depth) {
             pool_mc_idx += depth + 1;
             pool_mc[pool_mc_idx++] = -1;
         }
-        // if (root_start == 0)
-        // {
-        //     LOG("id: " << id_vec[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
-        //     LOG("pool_edges: " << to_string(pool_edges + root_start, root_deg));
-        //     LOG("matrix: \n"
-        //         << matrix_to_string());
-        //     LOG("clique_pool: \n" << bitmap_to_string(get_clique(depth), root_vector_size));
-        //     LOG("index_vec: " << to_string(index_vec, depth + 1));
-        //     LOG("id_vec: " << to_string(id_vec, depth + 1) << "\n");
-        // }
+        if (root_start == 0)
+        {
+            LOG("id: " << id_vec[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
+            LOG("pool_edges: " << to_string(pool_edges + root_start, root_deg));
+            LOG("matrix: \n"
+                << matrix_to_string());
+            LOG("clique_pool: \n" << bitmap_to_string(get_clique(depth), root_vector_size));
+            LOG("index_vec: " << to_string(index_vec, depth + 1));
+            LOG("id_vec: " << to_string(id_vec, depth + 1) << "\n");
+        }
         return;
     }
     if(v_index + 1 == root_deg) {
@@ -269,7 +269,7 @@ void LoiMaximalClique::dfs_clz(int v_index, int depth) {
     int v_filter = v_index + 1;
     int v_start = v_filter / (sizeof(Bitmap) * 8);
     Bitmap bitset = bitvec[v_start];
-    bitset = bitset & (BITMASK >> (v_filter % 64));
+    bitset = bitset & (0xffffffffffffffff >> (v_filter % 64));
     while (bitset)
     {
         int r = __builtin_clzll(bitset);

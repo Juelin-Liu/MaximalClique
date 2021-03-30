@@ -3,8 +3,8 @@
 
 #include "util.hpp"
 #include "set_operation.hpp"
-#include "rtm_operation.hpp"
-using namespace RTM_64;
+// #include "rtm_operation.hpp"
+#include "rtm.hpp"
 class LoiMaximalClique
 {
 public:
