@@ -21,7 +21,7 @@ int get_vector_size(int deg)
  * */
 int expand_avx2(Bitmap *bitmap, int *out, int vector_size);
 int expand_ctz(Bitmap *bitmap, int *out, int vector_size);
-
+int expand_avx2_compress(Bitmap * bitmap, int *out, int vector_size);
 /**
  * @param bitmap triangle intersection vector to be expanded
  * @param out output vertex id place

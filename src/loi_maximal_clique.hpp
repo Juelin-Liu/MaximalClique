@@ -48,6 +48,7 @@ private:
     Bitmap *next_vec_pool;
     int *next_set_pool;
     // Bitmap *X_vec; // X
+    int *triangle_cnt;
     int *index_vec;
     int *index_pool;       
     int *R;

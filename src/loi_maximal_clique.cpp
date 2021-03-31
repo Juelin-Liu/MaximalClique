@@ -63,6 +63,7 @@ void LoiMaximalClique::set_buffer_capacity(size_t deg)
     X = (int *)malloc(sizeof(int) * deg);
     next_set_pool = (int *)malloc(sizeof(int) * deg * deg);
     index_vec = (int *)malloc(sizeof(int) * (deg + 1));
+    triangle_cnt = (int *)malloc(sizeof(int) * (deg + 1));
 };
 
 void LoiMaximalClique::free_buffer()
@@ -94,6 +95,9 @@ void LoiMaximalClique::free_buffer()
     if(X != NULL){
         free(X);
     }
+    if(triangle_cnt != NULL){
+        free(triangle_cnt);
+    }
 }
 void LoiMaximalClique::init_R_X(const QVertex &a){
     aligned_root_vector_size = get_vector_size<AlignType>(a.deg);
@@ -121,6 +125,7 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
     root_vector_size = get_vector_size<Bitmap>(a.deg);
     aligned_root_vector_size = get_vector_size<AlignType>(a.deg);
     memset(get_bitmap(0), 0, a.deg * aligned_root_vector_size * sizeof(Bitmap));
+    memset(triangle_cnt, 0, a.deg * sizeof(int));
     for (int b_idx = 0; b_idx < a.deg; b_idx++)
     {
         const int b_id = pool_edges[a.start + b_idx];
@@ -129,6 +134,7 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
             const QVertex &b = graph[b_id];
             int t_num = mark_intersect_simd8x(pool_edges + a.start, a.deg,
                                                pool_edges + b.start, b.deg, get_bitmap(b_idx)); 
+            triangle_cnt[b_idx] = t_num;
             if (t_num > p_triangle_size) {
                 p_triangle_size = t_num;
                 p_index = b_idx;
@@ -392,11 +398,15 @@ void LoiMaximalClique::dfs_pivot(int v_index, int depth)
         return;
     }
     // choose a pivot point
+    // LOG("p_vec: " << bitmap_to_string(get_pvec(depth), root_vector_size));
+    // LOG("x_vec: " << bitmap_to_string(get_xvec(depth), root_vector_size));
     int pivot_index = find_first_index(get_pvec(depth), root_vector_size);
     assert(pivot_index != -1);
     bitwise_andn(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
     bitwise_andn(get_nvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
-    int num = expand_avx2(get_nvec(depth), get_nset(depth), root_vector_size);
+    // LOG("n_vec: " << bitmap_to_string(get_nvec(depth), root_vector_size));
+
+    int num = expand_avx2_compress(get_nvec(depth), get_nset(depth), root_vector_size);
     // int num = expand_ctz(get_nvec(depth), get_nset(depth), root_vector_size);
     int *next = get_nset(depth);
     // LOG("next: " << to_string(next, num) << "\n");
@@ -555,6 +565,6 @@ void LoiMaximalClique::report_mc_num()
         {
             break;
         }
-        std::cout << counter << " seconds: " << mc_num << " vertex processesd: " << u_cnt << std::endl;
+        std::cout << "executed: "<< counter << " s\t\tmc number: " << mc_num << "\t\tvertex num: " << u_cnt << std::endl;
     }
 }

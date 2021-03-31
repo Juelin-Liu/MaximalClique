@@ -449,6 +449,6 @@ void OrgMaximalClique::report_mc_num()
         {
             break;
         }
-        std::cout << counter << " seconds: " << mc_num << std::endl;
+        std::cout << "executed: "<< counter << " s\t\tmc number: " << mc_num << "\t\tvertex num: " << u_cnt << std::endl;
     }
 }

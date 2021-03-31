@@ -10,6 +10,8 @@ const Bitmap BITMASK = 0xff;
 const __m256i add8 = _mm256_set1_epi32(8);
 const __m256i add64 = _mm256_set1_epi32(64);
 const int base[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+uint8_t avx2_buffer[32] alignas(32);
+
 int expand_avx2(Bitmap *bitmap, int *out, int vector_size)
 {
    int *initout = out;
@@ -67,6 +69,29 @@ int expand_ctz(Bitmap *bitmap, int *out, int vector_size)
       }
    }
    return pos;
+};
+
+int expand_avx2_compress(Bitmap * bitmap, int *out, int vector_size){
+   int* init_out = out;
+   const __m256i zero_vec = _mm256_set1_epi8(char(0));
+   for (int i = 0; i < vector_size; i += 32)
+   {
+      __m256i cmp_mask = _mm256_cmpeq_epi8(*(__m256i *)&bitmap[i], zero_vec);
+      uint32_t bitset = ~_mm256_movemask_epi8(cmp_mask);
+      while (bitset != 0)
+      {
+         uint32_t t = bitset & -bitset;
+         int r = __builtin_ctz(bitset);
+         __m256i baseVec = _mm256_set1_epi32((i + r)* 8 - 1);
+         uint8_t mask = bitmap[r + i];
+         __m256i vecA = _mm256_load_si256((const __m256i *)vecDecodeTable[mask]);
+         vecA = _mm256_add_epi32(baseVec, vecA);
+         _mm256_storeu_si256((__m256i *)out, vecA);
+         out += lengthTable[mask];
+         bitset ^= t;
+      };
+   }
+   return out - init_out;
 };
 
 int expandToID(Bitmap *bitmap, int *out, int vector_size, int *id_list)
@@ -371,6 +396,21 @@ void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size)
 
 int find_first_index(Bitmap *bitmap, int vector_size)
 {
+   #ifdef __AVX2__
+   const __m256i zero_vec = _mm256_set1_epi8(char(0));
+   for (int i = 0; i < vector_size; i += 32)
+   {
+      __m256i cmp_mask = _mm256_cmpeq_epi8(*(__m256i *)&bitmap[i], zero_vec);
+      uint32_t bitset = ~_mm256_movemask_epi8(cmp_mask);
+      if(bitset){
+         const int r = __builtin_ctz(bitset);
+         uint8_t mask = bitmap[r + i];
+         int offset = vecDecodeTable[mask][0] - 1;
+         return i * 8 + r * 8 + offset;
+      }
+   }
+   return -1;
+   #else
    for (int i = 0; i < vector_size; i++)
    {
       if (bitmap[i])
@@ -380,6 +420,7 @@ int find_first_index(Bitmap *bitmap, int vector_size)
       }
    }
    return -1;
+   #endif
 };
 
 int find_last_index(Bitmap *bitmap, int vector_size)
