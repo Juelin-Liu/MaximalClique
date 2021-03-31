@@ -2,8 +2,6 @@
 #define _LOI_MAXIMAL_CLIQUE_H
 
 #include "util.hpp"
-#include "set_operation.hpp"
-// #include "rtm_operation.hpp"
 #include "rtm.hpp"
 class LoiMaximalClique
 {
@@ -19,8 +17,6 @@ public:
     int maximal_clique_bk();
     int maximal_clique_pivot();
     int maximal_clique_degen();
-    int maximal_clique_loi();
-
     void save_answers(const char *file_path);
     void start_report();
 
@@ -38,16 +34,19 @@ private:
     int *temp_set = NULL;
     int max_pool_sets_idx = 0, maximum_clique_size = 0;
     int intersect_call_time = 0, big_intersect_call_time = 0;
-
+    int next_pool_idx = 0;
     int max_vector_size, root_vector_size, root_deg, root_offset, root_start;
     int cur_index, cur_depth ;
-    void BronKerbosch(std::vector<int> &R, QVertex P, QVertex X, int mem_idx);
-    void Tomita(std::vector<int> &R, QVertex P, QVertex X);
     Bitmap *matrix;
-    Bitmap *clique_pool;
+    Bitmap *P_vec_pool; // cache P_vec
+    Bitmap *X_vec_pool; // X_vec
+    // Bitmap *P_vec; // P
+    // Bitmap *R_vec;  // R
+    // Bitmap *X_vec; // X
     int *index_vec;
-    int *index_pool;
+    int *index_pool;       
     int *id_vec;
+    int *next_pool;
     int build_matrix(const QVertex &u);
     /** 
      * @param u the root vertex
@@ -61,11 +60,18 @@ private:
      * @param depth the depth of the recursive call (shall be <= deg)
      * @return the clique bitmap of the root vertex and the given vertex
      * */
-    Bitmap *get_clique(int depth)
+    Bitmap *get_pvec(int depth)
     {
-        return &clique_pool[depth * root_vector_size];
+        return &P_vec_pool[depth * root_vector_size];
     };
-
+    /**
+     * @param depth the depth of the recursive call (shall be <= deg)
+     * @return the clique bitmap of the root vertex and the given vertex
+     * */
+    Bitmap *get_xvec(int depth)
+    {
+        return &X_vec_pool[depth * root_vector_size];
+    };
     /**
      * @param depth the depth of the recursive call (shall be <= deg)
      * @return the clique bitmap of the root vertex and the given vertex
@@ -76,6 +82,7 @@ private:
     };
     void dfs_clz(int v_index, int depth);
     void dfs_avx2(int v_index, int depth);
+    void dfs_avx2_pivot(int v_index, int depth);
     std::string matrix_to_string()
     {
         std::string result = "";
@@ -105,7 +112,7 @@ private:
         for (int j = 0; j < vector_size; j++)
         {
             Bitmap bitmap = bitmap_vec[j];
-            for (int k = sizeof(Bitmap) * 8 - 1; k >= 0; k--)
+            for (int k = 0; k < 8; k++)
             {
                 if (bitmap & (1llu << k))
                 {

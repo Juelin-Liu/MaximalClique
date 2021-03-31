@@ -13,8 +13,8 @@ using namespace std;
 struct timeval time_start;
 struct timeval time_end;
 
-string graph_file_path = "../data/amazon_cont";
-string output_file_path = "../output/amazon_out";
+string graph_file_path = "../data/amazon";
+string output_file_path = "../output/amazon_loi_pv";
 // BPMaximalClique mc;
 // OrgMaximalClique mc;
 LoiMaximalClique mc;
@@ -36,9 +36,8 @@ int main(int argc, char* argv[])
     gettimeofday(&time_start, NULL);
     mc.start_report();
     // int mc_num = mc.maximal_clique_bk();
-    // int mc_num  = mc.maximal_clique_pivot();
+    int mc_num  = mc.maximal_clique_pivot();
     // int mc_num = mc.maximal_clique_degen();
-    int mc_num = mc.maximal_clique_loi();
     gettimeofday(&time_end, NULL);
     double list_mc_time = (time_end.tv_sec - time_start.tv_sec) * 1000.0 + (time_end.tv_usec - time_start.tv_usec) / 1000.0;
     // if (list_mc_time > 10000.0) printf("list_mc_time=%.3fs\n", list_mc_time / 1000.0);
@@ -52,7 +51,11 @@ int main(int argc, char* argv[])
     // double intersect_ratio = mc.intersect_time / list_mc_time;
     // printf("intersect_ratio=%.3f\n", intersect_ratio);
     
-    if (argc > 2) mc.save_answers(argv[2]);
+    if (argc > 2){
+        mc.save_answers(argv[2]);
+    } else if(argc == 1) {
+        mc.save_answers(output_file_path.c_str());
+    }
 
     // printf("All done.\n");
 

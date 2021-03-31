@@ -4,17 +4,11 @@
 #define _CYCLIC_SHIFT2_ 147 //_MM_SHUFFLE(2,1,0,3); //rotating left
 #define _CYCLIC_SHIFT3_ 78  //_MM_SHUFFLE(1,0,3,2);
 #define _MASK_SHIFT_ 27     //_MM_SHUFFLE(0,1,2,3);
-typedef uint8_t Bitmap;
 const Bitmap BITMASK = 0xff;
 const __m256i add8 = _mm256_set1_epi32(8);
 const __m256i add64 = _mm256_set1_epi32(64);
 const int base[8] = {0,1,2,3,4,5,6,7};
 
-/**
- * @param bitmap triangle intersection vector to be expanded
- * @param out output index place
- * @param vector_size of length of the bitmap
- * */
 int expandToIndex(Bitmap *bitmap, int *out, int vector_size)
 {
    int *initout = out;
@@ -42,12 +36,6 @@ int expandToIndex(Bitmap *bitmap, int *out, int vector_size)
    return out - initout;
 };
 
-/**
- * @param bitmap triangle intersection vector to be expanded
- * @param out output vertex id place
- * @param vector_size of length of the bitmap
- * @param id_list start of the adjacancy list
- * */
 int expandToID(Bitmap *bitmap, int *out, int vector_size, int *id_list)
 {
    int p = expandToIndex(bitmap, out, vector_size);
@@ -58,16 +46,6 @@ int expandToID(Bitmap *bitmap, int *out, int vector_size, int *id_list)
    return p;
 };
 
-/**
- * 
- * @note set intersection of two list, vec_a and vec_b
- * @return number common vertex
- * @return bitvec the position of common vertex in bitmap format relative to vec_a
- * @param vec_a first list
- * @param size_a size of first list
- * @param vec_b second lsit
- * @param size_b size of the second list
- * */
 int mark_intersect(int *set_a, int size_a, int *set_b, int size_b, Bitmap *bitvec)
 {
    int i = 0, j = 0, cnt = 0;
@@ -175,11 +153,6 @@ int mark_intersect_simd8x(int *set_a, int size_a, int *set_b, int size_b, Bitmap
    return cnt;
 };
 
-/**
- * 
- * @note bitwise and operation of two bitstream
- * @return out the result of two intersection
- * */
 void intersect(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
 {
    for (int i = 0; i < vector_size; i++)
@@ -198,13 +171,7 @@ bool intersect_allzero(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vect
    return all_zero == 0;
 }; // bitwise and operation
 
-/**
- * @param bitmap the coming bitstream
- * @param out place that holds the indices in the bitmap
- * @param start starting point of the bitmap (bits)
- * @param end end place of the bitmap (bits)
- * @return number of indices
- * */
+
 int expandToIndex(Bitmap *bitmap, int *out, int start, int end)
 {
    if (start == end)
@@ -242,14 +209,7 @@ int expandToIndex(Bitmap *bitmap, int *out, int start, int end)
    }
    return out - initout;
 };
-/**
- * @param bitmap the coming bitstream
- * @param out place that holds the vertex ids in the bitmap
- * @param start starting point of the bitmap (bits)
- * @param end end place of the bitmap (bits)
- * @param id_list the id_list corresponds to the bitmap
- * @return number of indices
- * */
+
 int expandToID(Bitmap *bitmap, int *out, int *id_list, int start, int end)
 {
    int p = expandToIndex(bitmap, out, start, end);
@@ -260,11 +220,6 @@ int expandToID(Bitmap *bitmap, int *out, int *id_list, int start, int end)
    return p;
 };
 
-/** 
- * @param bitmap coming bitstream
- * @param vector_size length of the bitstream
- * @return number of 1s in the bitstream
- * */
 int count_bitmap(Bitmap *bitmap, int vector_size)
 {
    int p = 0;
@@ -279,13 +234,6 @@ int count_bitmap(Bitmap *bitmap, int vector_size)
    return p;
 };
 
-/** 
- * @param bitmap coming bitstream
- * @param vector_size length of the bitstream
- * @param start starting point of the bitmap (bits)
- * @param end end place of the bitmap (bits)
- * @return number of 1s in the bitstream
- * */
 int count_bitmap(Bitmap *bitmap, int start, int end)
 {
    if (start == end)
@@ -303,12 +251,6 @@ int count_bitmap(Bitmap *bitmap, int start, int end)
       return lengthTable[bitset];
    }
 };
-
-/**
- * @param bitmap coming bitstream
- * @param vector_size number of bitmap to exam
- * @return true if all the bits are zero, false otherwise
- * */
 bool all_zero(Bitmap *bitmap, int vector_size)
 {
    for (int i = 0; i < vector_size; i++)
@@ -319,4 +261,72 @@ bool all_zero(Bitmap *bitmap, int vector_size)
       }
    }
    return true;
+};
+
+void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
+   for(int i = 0; i < vector_size; i++){
+      out[i] = ~(bitmap_a[i] & bitmap_b[i]);
+   }
+};
+void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
+   for(int i = 0; i < vector_size; i++){
+      out[i] = bitmap_a[i] & ~bitmap_b[i];
+   }
+};
+
+void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
+   for(int i = 0; i < vector_size; i++){
+      out[i] = bitmap_a[i] & bitmap_b[i];
+   }
+};
+void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size){
+   for(int i = 0; i < vector_size; i++){
+      out[i] = ~bitmap_a[i];
+   }
+};
+
+int find_first_index(Bitmap * bitmap, int vector_size){
+   for (int i = 0; i < vector_size; i++){
+      if (bitmap[i]){
+         auto offset = vecDecodeTable[bitmap[i]][0];
+         return offset + i * 8 - 1;
+      }
+   }
+   return -1;
+};
+
+int find_last_index(Bitmap * bitmap, int vector_size){
+   for (int i = vector_size - 1; i >= 0; i--){
+      if (bitmap[i]){
+         int length = lengthTable[bitmap[i]];
+         int offset = vecDecodeTable[bitmap[i]][length - 1];
+         return offset + i * 8 - 1;
+      }
+   }
+   return -1;
+};
+
+void fill_with_one(Bitmap * bitmap, int num_one){
+   if(num_one < 8){
+      *bitmap = BITMASK >> (8 - num_one);
+      return;
+   }
+   int num_bytes = num_one / 8, offset = num_one % 8;
+   memset(bitmap, 0xff, num_bytes);
+   if (offset) {
+      bitmap[num_bytes] = BITMASK >> (8 - offset);
+   }
+   // for (int i = 0; i < num_one; i++){
+   //    int pos = i / 8;
+   //    int offset = i % 8;
+   //    bitmap[pos] |= 1 << offset;
+   // }
+};
+
+void mark_as_one(Bitmap * bitmap, int index){
+   bitmap[index / 8] |= 1 << (index % 8);
+};
+
+void mark_as_zero(Bitmap * bitmap, int index){
+      bitmap[index / 8] ^= 1 << (index % 8);
 };

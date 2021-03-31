@@ -1,5 +1,7 @@
 
 #include "util.hpp"
+#ifndef _RTM_TABLE_H_
+#define _RTM_TABLE_H_
 #if defined(_MSC_VER)
 #define ALIGNED(x) __declspec(align(x))
 #else
@@ -546,3 +548,4 @@ static uint8_t vecDecodeTableByte[256][8] ALIGNED(16)  = {
     { 2, 3, 4, 5, 6, 7, 8, 0 }, /* 0xFE (11111110) */
     { 1, 2, 3, 4, 5, 6, 7, 8 }  /* 0xFF (11111111) */
 };
+#endif

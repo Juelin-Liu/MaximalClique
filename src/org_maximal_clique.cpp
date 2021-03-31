@@ -148,6 +148,7 @@ void OrgMaximalClique::BronKerbosch(std::vector<int>& R, UVertex P, UVertex X, i
     R.push_back(-1); // enlarge R by a placeholder(-1).
     for (int i = 0; i < P.deg; ++i) {
         int v = pool_sets[P.start + i];
+        int cur_vertex_id = v;
         R.back() = v;
         int newPstart = mem_idx;
         int newPdeg = intersect(pool_sets + P.start + i, P.deg - i,

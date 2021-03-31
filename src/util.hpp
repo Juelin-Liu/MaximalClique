@@ -21,6 +21,8 @@
 #define SIMD_STATE 4 // 0:none, 2:scalar2x, 4:simd4x
 #define SIMD_MODE 1 // 0:naive 1: filter
 typedef int PackBase;
+typedef uint8_t Bitmap;
+
 #ifdef SI64
 typedef long long PackState;
 #else
