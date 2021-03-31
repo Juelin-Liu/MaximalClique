@@ -139,7 +139,7 @@ int LoiMaximalClique::maximal_clique_bk2()
         memset(P_vec_pool, 0xff, root_vector_size * sizeof(Bitmap));
         for (int v_index = u.offset; v_index < u.deg; v_index++)
         {
-            dfs_avx2(v_index, 1);
+            dfs(v_index, 1);
         }
     }
 
@@ -171,7 +171,7 @@ int LoiMaximalClique::maximal_clique_bk()
         // int next[root_deg + PADDING];
         // // // visit the candidates, ignore pivoting vertex's neighbor
         // bitwise_andn(next_vec, get_bitmap(pivot_index), next_vec, aligned_root_vector_size);
-        int num = expandToIndex(get_nvec(0), get_nset(0), root_vector_size);
+        int num = expand_avx2(get_nvec(0), get_nset(0), root_vector_size);
         int *next = get_nset(0);
         // LOG("id: " << R[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
         // LOG("matrix: \n"
@@ -185,7 +185,7 @@ int LoiMaximalClique::maximal_clique_bk()
         {
             int v_index = next[i];
             // int v_index = i;
-            dfs_avx2(v_index, 1);
+            dfs(v_index, 1);
             mark_as_one(get_xvec(0), v_index);
             mark_as_zero(get_pvec(0), v_index);
         }
@@ -221,7 +221,7 @@ int LoiMaximalClique::maximal_clique_pivot()
         if (pivot_index != -1){
             bitwise_andn(get_nvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
         }
-        int num = expandToIndex(get_nvec(0), get_nset(0), root_vector_size);
+        int num = expand_ctz(get_nvec(0), get_nset(0), root_vector_size);
         int *next = get_nset(0);
         // LOG("id: " << R[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
         // LOG("matrix: \n"
@@ -235,7 +235,7 @@ int LoiMaximalClique::maximal_clique_pivot()
         {
             int v_index = next[i];
             // int v_index = i;
-            dfs_avx2(v_index, 1);
+            dfs_pivot(v_index, 1);
             mark_as_one(get_xvec(0), v_index);
             mark_as_zero(get_pvec(0), v_index);
         }
@@ -251,10 +251,55 @@ int LoiMaximalClique::maximal_clique_pivot()
 // TODO implement this
 int LoiMaximalClique::maximal_clique_degen()
 {
+    set_buffer_capacity(max_deg);
+    index_vec[0] = -1;
+    mc_num = 0, u_id = 0, p_set_idx = 0;
+    visited = new bool[v_num];
+    std::vector<int> dorder = degeneracy_order();
+    for (int cur_id : dorder)
+    {
+        u_id++;
+        R[0] = cur_id;
+        if (visited[cur_id]){
+            continue;
+        }
+        const QVertex& u = graph[cur_id];
+        build_matrix(u);
+        bitwise_andn(get_pvec(0), get_xvec(0), get_nvec(0), aligned_root_vector_size);
+
+        // choose the first vertex from P \ X
+        int pivot_index = find_first_index(get_nvec(0), root_vector_size); // herustic
+        if (pivot_index != -1){
+            bitwise_andn(get_nvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
+        }
+        int num = expand_ctz(get_nvec(0), get_nset(0), root_vector_size);
+        int *next = get_nset(0);
+        // LOG("id: " << R[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
+        // LOG("matrix: \n"
+        //     << matrix_to_string());
+        // LOG("p_vec: " << bitmap_to_string(get_pvec(0), root_vector_size));
+        // LOG("x_vec: " << bitmap_to_string(get_xvec(0), root_vector_size));
+        // LOG("pool_edges: " << to_string(pool_edges + root_start, root_deg));
+        // LOG("pivot index: " << pivot_index);
+        // LOG("next: " << to_string(next, num));
+        for (int i = 0; i < num; i++)
+        {
+            int v_index = next[i];
+            // int v_index = i;
+            dfs_pivot(v_index, 1);
+            mark_as_one(get_xvec(0), v_index);
+            mark_as_zero(get_pvec(0), v_index);
+        }
+        visited[cur_id] = true;
+    }
+    delete[] visited;
+    free_buffer();
+    printf("max_pool_sets_idx=%d\n", max_pool_sets_idx);
+    printf("maximum_clique_size=%d\n", maximum_clique_size);
     return mc_num;
 }
 
-void LoiMaximalClique::dfs_avx2(int v_index, int depth)
+void LoiMaximalClique::dfs(int v_index, int depth)
 {
     // bookkeeping
     index_vec[depth] = v_index;
@@ -282,17 +327,17 @@ void LoiMaximalClique::dfs_avx2(int v_index, int depth)
         return;
     }
     bitwise_andn(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
-    int num = expandToIndex(get_nvec(depth), get_nset(depth), root_vector_size);
+    int num = expand_avx2(get_nvec(depth), get_nset(depth), root_vector_size);
     int *next = get_nset(depth);
     for (int i = 0; i < num; i++)
     {
-        dfs_avx2(next[i], depth + 1);
+        dfs(next[i], depth + 1);
         mark_as_zero(get_pvec(depth), next[i]);
         mark_as_one(get_xvec(depth), next[i]);
     }
 }
 
-void LoiMaximalClique::dfs_avx2_pivot(int v_index, int depth)
+void LoiMaximalClique::dfs_pivot(int v_index, int depth)
 {
 
     // bookkeeping
@@ -344,73 +389,129 @@ void LoiMaximalClique::dfs_avx2_pivot(int v_index, int depth)
     assert(pivot_index != -1);
     bitwise_andn(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
     bitwise_andn(get_nvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
-    int num = expandToIndex(get_nvec(depth), get_nset(depth), root_vector_size);
+    // int num = expand_avx2(get_nvec(depth), get_nset(depth), root_vector_size);
+    int num = expand_ctz(get_nvec(depth), get_nset(depth), root_vector_size);
     int *next = get_nset(depth);
     // LOG("next: " << to_string(next, num) << "\n");
     for (int i = 0; i < num; i++)
     {
-        dfs_avx2(next[i], depth + 1);
+        dfs_pivot(next[i], depth + 1);
         mark_as_zero(get_pvec(depth), next[i]);
         mark_as_one(get_xvec(depth), next[i]);
     }
 }
 
-void LoiMaximalClique::dfs_clz(int v_index, int depth)
+// void LoiMaximalClique::dfs_clz(int v_index, int depth)
+// {
+//     // check if v is part of a maximal clique
+//     index_vec[depth] = v_index;
+//     R[depth] = pool_edges[root_start + v_index];
+//     bool found = intersect_allzero(get_bitmap(v_index), get_pvec(depth - 1), get_pvec(depth), root_vector_size);
+//     if (found)
+//     {
+//         mc_num++;
+//         if (pool_mc_idx + depth + 1 < PACK_NODE_POOL_SIZE)
+//         {
+//             memcpy(pool_mc + pool_mc_idx, R, (depth + 1) * sizeof(int));
+//             pool_mc_idx += depth + 1;
+//             pool_mc[pool_mc_idx++] = -1;
+//         }
+//         if (root_start == 0)
+//         {
+//             LOG("id: " << R[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
+//             LOG("pool_edges: " << to_string(pool_edges + root_start, root_deg));
+//             LOG("matrix: \n"
+//                 << matrix_to_string());
+//             LOG("P_vec_pool: \n"
+//                 << bitmap_to_string(get_pvec(depth), root_vector_size));
+//             LOG("index_vec: " << to_string(index_vec, depth + 1));
+//             LOG("R: " << to_string(R, depth + 1) << "\n");
+//         }
+//         return;
+//     }
+//     if (v_index + 1 == root_deg)
+//     {
+//         return;
+//     }
+//     Bitmap *bitvec = get_pvec(depth);
+//     int v_filter = v_index + 1;
+//     int v_start = v_filter / (sizeof(Bitmap) * 8);
+//     Bitmap bitset = bitvec[v_start];
+//     bitset = bitset & (0xffffffffffffffff >> (v_filter % 64));
+//     while (bitset)
+//     {
+//         int r = __builtin_clzll(bitset);
+//         int new_index = r + 64 * v_start;
+//         bitset ^= 1LLU << (63 - r);
+//         dfs_clz(new_index, depth + 1);
+//     }
+//     // COUNT LEADING ZERO
+//     for (int i = v_start + 1; i < root_vector_size; i++)
+//     {
+//         bitset = bitvec[i];
+//         while (bitset)
+//         {
+//             int r = __builtin_clzll(bitset);
+//             int new_index = r + 64 * i;
+//             bitset ^= 1LLU << (63 - r);
+//             dfs_clz(new_index, depth + 1);
+//         }
+//     }
+// }
+std::vector<int> LoiMaximalClique::degeneracy_order()
 {
-    // check if v is part of a maximal clique
-    index_vec[depth] = v_index;
-    R[depth] = pool_edges[root_start + v_index];
-    bool found = intersect_allzero(get_bitmap(v_index), get_pvec(depth - 1), get_pvec(depth), root_vector_size);
-    if (found)
-    {
-        mc_num++;
-        if (pool_mc_idx + depth + 1 < PACK_NODE_POOL_SIZE)
-        {
-            memcpy(pool_mc + pool_mc_idx, R, (depth + 1) * sizeof(int));
-            pool_mc_idx += depth + 1;
-            pool_mc[pool_mc_idx++] = -1;
-        }
-        if (root_start == 0)
-        {
-            LOG("id: " << R[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
-            LOG("pool_edges: " << to_string(pool_edges + root_start, root_deg));
-            LOG("matrix: \n"
-                << matrix_to_string());
-            LOG("P_vec_pool: \n"
-                << bitmap_to_string(get_pvec(depth), root_vector_size));
-            LOG("index_vec: " << to_string(index_vec, depth + 1));
-            LOG("R: " << to_string(R, depth + 1) << "\n");
-        }
-        return;
+    std::vector<int> deg(v_num);
+    int md = 0;
+    for (int i = 0; i < v_num; ++i) {
+        deg[i] = graph[i].deg;
+        md = std::max(md, deg[i]);
     }
-    if (v_index + 1 == root_deg)
-    {
-        return;
+
+    std::vector<int> bin(md + 1);
+    for (int i = 0; i <= md; ++i) bin[i] = 0;
+    for (int i = 0; i < v_num; ++i) bin[deg[i]]++;
+
+    int start = 0;
+    for (int i = 0; i <= md; ++i) {
+        int num = bin[i];
+        bin[i] = start;
+        start += num;
     }
-    Bitmap *bitvec = get_pvec(depth);
-    int v_filter = v_index + 1;
-    int v_start = v_filter / (sizeof(Bitmap) * 8);
-    Bitmap bitset = bitvec[v_start];
-    bitset = bitset & (0xffffffffffffffff >> (v_filter % 64));
-    while (bitset)
-    {
-        int r = __builtin_clzll(bitset);
-        int new_index = r + 64 * v_start;
-        bitset ^= 1LLU << (63 - r);
-        dfs_clz(new_index, depth + 1);
+
+    std::vector<int> vert(v_num), pos(v_num);
+    for (int i = 0; i < v_num; ++i) {
+        pos[i] = bin[deg[i]];
+        vert[pos[i]] = i;
+        bin[deg[i]]++;
     }
-    // COUNT LEADING ZERO
-    for (int i = v_start + 1; i < root_vector_size; i++)
-    {
-        bitset = bitvec[i];
-        while (bitset)
-        {
-            int r = __builtin_clzll(bitset);
-            int new_index = r + 64 * i;
-            bitset ^= 1LLU << (63 - r);
-            dfs_clz(new_index, depth + 1);
+    for (int i = md; i > 0; --i) bin[i] = bin[i - 1];
+    bin[0] = 0;
+
+    std::vector<int> degen_order;
+    degen_order.reserve(v_num);
+    int degeneracy = 0;
+    for (int i = 0; i < v_num; ++i) {
+        int v = vert[i];
+        degen_order.push_back(v);
+        degeneracy = std::max(degeneracy, deg[v]);
+        for (int j = 0; j < graph[v].deg; ++j) {
+            int u = pool_edges[graph[v].start + j];
+            if (deg[u] > deg[v]) {
+                int du = deg[u], pu = pos[u];
+                int pw = bin[du], w = vert[pw];
+                if (u != w) {
+                    pos[u] = pw; vert[pu] = w;
+                    pos[w] = pu; vert[pw] = u;
+                }
+                bin[du]++;
+                deg[u]--;
+            }
         }
     }
+    
+    printf("degeneracy=%d\n", degeneracy);
+
+    return degen_order;
 }
 
 void LoiMaximalClique::save_answers(const char *file_path)

@@ -9,14 +9,15 @@ class BPMaximalClique
 public:
     int v_num, p_num;
     long long e_num;
-
+    int u_cnt;
     BPMaximalClique();
     ~BPMaximalClique();
     void build(const EdgeVector& _e_v);
     std::vector<int> degeneracy_order();
 
     int maximal_clique_degen();
-
+    void report_mc_num();
+    void start_report();
     void save_answers(const char* file_path);
 
 private:
@@ -35,7 +36,8 @@ private:
     int intersect_call_time = 0, big_intersect_call_time = 0;
 
     void Tomita(std::vector<int>& R, UVertex P, UVertex X);
-    void report_mc_num();
+
+
 };
 
 #endif

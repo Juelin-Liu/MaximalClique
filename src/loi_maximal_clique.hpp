@@ -21,6 +21,7 @@ public:
 
     void save_answers(const char *file_path);
     void start_report();
+    void report_mc_num();
 
     // double intersect_time = 0.0;
     // unsigned long long intersect_cnt = 0;
@@ -53,6 +54,13 @@ private:
     int *R;
     bool *visited;
     int build_matrix(const QVertex &u);
+    /**
+     * @param deg degree of root vertex
+     * */
+    void set_buffer_capacity(size_t deg);
+    void free_buffer();
+    void dfs(int v_index, int depth);
+    void dfs_pivot(int v_index, int depth);
     /** 
      * @param u the root vertex
      * @return number of triangles
@@ -98,15 +106,7 @@ private:
     int* get_nset(int depth){
         return &next_set_pool[depth * root_deg];
     }
-    /**
-     * @param deg degree of root vertex
-     * */
-    void set_buffer_capacity(size_t deg);
-    void free_buffer();
 
-    void dfs_clz(int v_index, int depth);
-    void dfs_avx2(int v_index, int depth);
-    void dfs_avx2_pivot(int v_index, int depth);
 
 
     std::string matrix_to_string()
@@ -153,7 +153,6 @@ private:
         }
         return result;
     }
-    void report_mc_num();
 };
 
 #endif

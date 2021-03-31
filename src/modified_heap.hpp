@@ -37,7 +37,8 @@ public:
     void adjust();
     int get_size();
     bool in_heap(int key);
-    
+    void start_report();
+    void report_mc_num();
 private:
     int size = 0, reset_label = 0;
     MHNode *heap;

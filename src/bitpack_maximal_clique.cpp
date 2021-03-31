@@ -72,7 +72,7 @@ int BPMaximalClique::maximal_clique_degen()
     max_pool_sets_idx = 0; maximum_clique_size = 0;
     pool_mc_idx = 0; mc_num = 0;
     intersect_call_time = 0; big_intersect_call_time = 0;
-    
+    u_cnt = 0;
     PackState *visited_state = new PackState[p_num];
     memset(visited_state, 0, sizeof(PackState) * p_num);    
     std::vector<int> dorder = degeneracy_order();
@@ -81,8 +81,8 @@ int BPMaximalClique::maximal_clique_degen()
     R.reserve(2048);
     R.push_back(-1);
 
-    std::thread(&BPMaximalClique::report_mc_num, this).detach();
     for (auto v : dorder) {
+        u_cnt++;
         R[0] = v;
         UVertex P(0, 0);
 #if SIMD_STATE == 4
@@ -332,14 +332,22 @@ void BPMaximalClique::save_answers(const char* file_path)
     fclose(fp);
 }
 
-void BPMaximalClique::report_mc_num() {
+void BPMaximalClique::start_report()
+{
+    std::thread(&BPMaximalClique::report_mc_num, this).detach();
+}
+
+void BPMaximalClique::report_mc_num()
+{
     int counter = 0;
-    for(;;){
+    for (;;)
+    {
         std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
         counter++;
-        if (counter > MAX_REPORT_TIME){
+        if (counter > MAX_REPORT_TIME)
+        {
             break;
         }
-        std::cout << counter << " seconds: " << mc_num << std::endl;
+        std::cout << counter << " seconds: " << mc_num << " vertex processesd: " << u_cnt << std::endl;
     }
 }

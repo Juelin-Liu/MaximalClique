@@ -19,7 +19,8 @@ int get_vector_size(int deg)
  * @param out output index place
  * @param vector_size of length of the bitmap
  * */
-int expandToIndex(Bitmap *bitmap, int *out, int vector_size);
+int expand_avx2(Bitmap *bitmap, int *out, int vector_size);
+int expand_ctz(Bitmap *bitmap, int *out, int vector_size);
 
 /**
  * @param bitmap triangle intersection vector to be expanded
@@ -70,7 +71,7 @@ bool all_zero(Bitmap *bitmap, int vector_size);
  * @param end end place of the bitmap (bits)
  * @return number of indices
  * */
-int expandToIndex(Bitmap *bitmap, int *out, int start, int end);
+int expand_avx2(Bitmap *bitmap, int *out, int start, int end);
 /**
  * @param bitmap the coming bitstream
  * @param out place that holds the vertex ids in the bitmap

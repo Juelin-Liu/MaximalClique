@@ -20,7 +20,8 @@ public:
     int maximal_clique_degen();
 
     void save_answers(const char* file_path);
-
+    void start_report();
+    void report_mc_num();
     // double intersect_time = 0.0;
     // unsigned long long intersect_cnt = 0;
     // struct timeval time_start;

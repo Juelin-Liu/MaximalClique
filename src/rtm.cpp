@@ -9,8 +9,8 @@
 const Bitmap BITMASK = 0xff;
 const __m256i add8 = _mm256_set1_epi32(8);
 const __m256i add64 = _mm256_set1_epi32(64);
-const int base[8] = {0,1,2,3,4,5,6,7};
-int expandToIndex(Bitmap *bitmap, int *out, int vector_size)
+const int base[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+int expand_avx2(Bitmap *bitmap, int *out, int vector_size)
 {
    int *initout = out;
    __m256i baseVec = _mm256_set1_epi32(-1);
@@ -37,9 +37,41 @@ int expandToIndex(Bitmap *bitmap, int *out, int vector_size)
    return out - initout;
 };
 
+int expand_ctz(Bitmap *bitmap, int *out, int vector_size)
+{
+   uint64_t bitset;
+   uint64_t * bitmap_mask = (uint64_t *) bitmap;
+   int offset =  vector_size % 8;
+   int aligned_size = vector_size - offset;
+   int pos = 0;
+   for (int i = 0; i < aligned_size; i+=8)
+   {
+      bitset = *(uint64_t *)(bitmap + i);
+      while (bitset != 0)
+      {
+         uint64_t t = bitset & -bitset;
+         int r = __builtin_ctzll(bitset);
+         out[pos++] = i * 8 + r;
+         bitset ^= t;
+      }
+   }
+   if(offset){
+      bitset = *(uint64_t *)(bitmap + aligned_size);
+      bitset = (bitset << (64 - offset * 8)) >> (64 - offset * 8);
+      while (bitset != 0)
+      {
+         uint64_t t = bitset & -bitset;
+         int r = __builtin_ctzll(bitset);
+         out[pos++] = aligned_size * 8 + r;
+         bitset ^= t;
+      }
+   }
+   return pos;
+};
+
 int expandToID(Bitmap *bitmap, int *out, int vector_size, int *id_list)
 {
-   int p = expandToIndex(bitmap, out, vector_size);
+   int p = expand_avx2(bitmap, out, vector_size);
    for (int i = 0; i < p; i++)
    {
       out[i] = id_list[out[i]];
@@ -172,8 +204,7 @@ bool intersect_allzero(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vect
    return all_zero == 0;
 }; // bitwise and operation
 
-
-int expandToIndex(Bitmap *bitmap, int *out, int start, int end)
+int expand_avx2(Bitmap *bitmap, int *out, int start, int end)
 {
    if (start == end)
       return 0;
@@ -213,7 +244,7 @@ int expandToIndex(Bitmap *bitmap, int *out, int start, int end)
 
 int expandToID(Bitmap *bitmap, int *out, int *id_list, int start, int end)
 {
-   int p = expandToIndex(bitmap, out, start, end);
+   int p = expand_avx2(bitmap, out, start, end);
    for (int i = 0; i < p; i++)
    {
       out[i] = id_list[out[i]];
@@ -254,15 +285,17 @@ int count_bitmap(Bitmap *bitmap, int start, int end)
 };
 bool all_zero(Bitmap *bitmap, int vector_size)
 {
-   #ifdef __AVX2__
+#ifdef __AVX2__
    const __m256i zero_vec = _mm256_set1_epi8(char(0));
-   for (int i = 0; i < vector_size; i+=32){
-      if (~_mm256_movemask_epi8(_mm256_cmpeq_epi8(*(__m256i*) &bitmap[i], zero_vec))){
+   for (int i = 0; i < vector_size; i += 32)
+   {
+      if (~_mm256_movemask_epi8(_mm256_cmpeq_epi8(*(__m256i *)&bitmap[i], zero_vec)))
+      {
          return false;
       }
    }
    return true;
-   #else
+#else
    for (int i = 0; i < vector_size; i++)
    {
       if (bitmap[i])
@@ -271,48 +304,61 @@ bool all_zero(Bitmap *bitmap, int vector_size)
       }
    }
    return true;
-   #endif
+#endif
 };
 
-void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
-   for(int i = 0; i < vector_size; i++){
+void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+{
+   for (int i = 0; i < vector_size; i++)
+   {
       out[i] = ~(bitmap_a[i] & bitmap_b[i]);
    }
 };
 
-void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
-   #ifdef __AVX2__
-   for(int i = 0; i < vector_size; i+=32){
+void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+{
+#ifdef __AVX2__
+   for (int i = 0; i < vector_size; i += 32)
+   {
       // order of bitmap_a and bitmap_b matters!
-      *(__m256i *) &out[i] = _mm256_andnot_si256(*(__m256i *) &bitmap_b[i], *(__m256i *) &bitmap_a[i]);
+      *(__m256i *)&out[i] = _mm256_andnot_si256(*(__m256i *)&bitmap_b[i], *(__m256i *)&bitmap_a[i]);
    }
-   #else
-   for(int i = 0; i < vector_size; i++){
+#else
+   for (int i = 0; i < vector_size; i++)
+   {
       out[i] = bitmap_a[i] & ~bitmap_b[i];
    }
-   #endif
+#endif
 };
 
-void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
-   #ifdef __AVX2__
-   for(int i = 0; i < vector_size; i+=32){
-      *(__m256i *) &out[i] = _mm256_and_si256(*(__m256i *) &bitmap_a[i], *(__m256i *) &bitmap_b[i]);
+void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+{
+#ifdef __AVX2__
+   for (int i = 0; i < vector_size; i += 32)
+   {
+      *(__m256i *)&out[i] = _mm256_and_si256(*(__m256i *)&bitmap_a[i], *(__m256i *)&bitmap_b[i]);
    }
-   #else
-   for(int i = 0; i < vector_size; i++){
+#else
+   for (int i = 0; i < vector_size; i++)
+   {
       out[i] = bitmap_a[i] & bitmap_b[i];
    }
-   #endif
+#endif
 };
-void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size){
-   for(int i = 0; i < vector_size; i++){
+void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size)
+{
+   for (int i = 0; i < vector_size; i++)
+   {
       out[i] = ~bitmap_a[i];
    }
 };
 
-int find_first_index(Bitmap * bitmap, int vector_size){
-   for (int i = 0; i < vector_size; i++){
-      if (bitmap[i]){
+int find_first_index(Bitmap *bitmap, int vector_size)
+{
+   for (int i = 0; i < vector_size; i++)
+   {
+      if (bitmap[i])
+      {
          auto offset = vecDecodeTable[bitmap[i]][0];
          return offset + i * 8 - 1;
       }
@@ -320,9 +366,12 @@ int find_first_index(Bitmap * bitmap, int vector_size){
    return -1;
 };
 
-int find_last_index(Bitmap * bitmap, int vector_size){
-   for (int i = vector_size - 1; i >= 0; i--){
-      if (bitmap[i]){
+int find_last_index(Bitmap *bitmap, int vector_size)
+{
+   for (int i = vector_size - 1; i >= 0; i--)
+   {
+      if (bitmap[i])
+      {
          int length = lengthTable[bitmap[i]];
          int offset = vecDecodeTable[bitmap[i]][length - 1];
          return offset + i * 8 - 1;
@@ -331,14 +380,17 @@ int find_last_index(Bitmap * bitmap, int vector_size){
    return -1;
 };
 
-void fill_with_one(Bitmap * bitmap, int num_one){
-   if(num_one < 8){
+void fill_with_one(Bitmap *bitmap, int num_one)
+{
+   if (num_one < 8)
+   {
       *bitmap = BITMASK >> (8 - num_one);
       return;
    }
    int num_bytes = num_one / 8, offset = num_one % 8;
    memset(bitmap, 0xff, num_bytes);
-   if (offset) {
+   if (offset)
+   {
       bitmap[num_bytes] = BITMASK >> (8 - offset);
    }
    // for (int i = 0; i < num_one; i++){
@@ -348,10 +400,12 @@ void fill_with_one(Bitmap * bitmap, int num_one){
    // }
 };
 
-void mark_as_one(Bitmap * bitmap, int index){
+void mark_as_one(Bitmap *bitmap, int index)
+{
    bitmap[index / 8] |= 1 << (index % 8);
 };
 
-void mark_as_zero(Bitmap * bitmap, int index){
-      bitmap[index / 8] ^= 1 << (index % 8);
+void mark_as_zero(Bitmap *bitmap, int index)
+{
+   bitmap[index / 8] ^= 1 << (index % 8);
 };

@@ -384,3 +384,20 @@ void OrgMaximalClique::save_answers(const char* file_path)
 
     fclose(fp);
 }
+
+void OrgMaximalClique::start_report()
+{
+    std::thread(&OrgMaximalClique::report_mc_num, this).detach();
+}
+
+void OrgMaximalClique::report_mc_num() {
+    int counter = 0;
+    for(;;){
+        std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
+        counter++;
+        if (counter > MAX_REPORT_TIME){
+            break;
+        }
+        std::cout << counter << " seconds: " << mc_num << std::endl;
+    }
+}
