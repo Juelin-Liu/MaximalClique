@@ -13,8 +13,8 @@ using namespace std;
 struct timeval time_start;
 struct timeval time_end;
 
-string graph_file_path = "../data/amazon";
-string output_file_path = "../output/amazon_loi_pv";
+string graph_file_path = "../data/reactome";
+string output_file_path = "../output/reactome_mc";
 // BPMaximalClique mc;
 //OrgMaximalClique mc;
 LoiMaximalClique mc;

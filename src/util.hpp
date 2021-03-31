@@ -37,7 +37,8 @@ const size_t PARA_DEG_M256 = sizeof(__m256i) / sizeof(PackState);
 
 const size_t PACK_NODE_POOL_SIZE = 118400000*2;
 
-const int CACHE_LINE_SIZE = sysconf (_SC_LEVEL1_DCACHE_LINESIZE); // in byte.
+// const int CACHE_LINE_SIZE = sysconf (_SC_LEVEL1_DCACHE_LINESIZE); // in byte.
+const int CACHE_LINE_SIZE = 32; // in byte.
 struct PackNode
 {
     PackBase base;

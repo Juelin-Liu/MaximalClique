@@ -38,3 +38,4 @@ mc_result/*
 data/*
 !data/compact.py
 !data/init.sh
+!data/reactome

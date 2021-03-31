@@ -10,7 +10,6 @@ const Bitmap BITMASK = 0xff;
 const __m256i add8 = _mm256_set1_epi32(8);
 const __m256i add64 = _mm256_set1_epi32(64);
 const int base[8] = {0, 1, 2, 3, 4, 5, 6, 7};
-uint8_t avx2_buffer[32] alignas(32);
 
 int expand_avx2(Bitmap *bitmap, int *out, int vector_size)
 {
