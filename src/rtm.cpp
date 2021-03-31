@@ -1,5 +1,7 @@
 #include "rtm.hpp"
 #include "rtm_table.h"
+#define __AVX2__ 1
+
 #define _CYCLIC_SHIFT1_ 57  //_MM_SHUFFLE(0,3,2,1); //rotating right
 #define _CYCLIC_SHIFT2_ 147 //_MM_SHUFFLE(2,1,0,3); //rotating left
 #define _CYCLIC_SHIFT3_ 78  //_MM_SHUFFLE(1,0,3,2);
@@ -8,7 +10,6 @@ const Bitmap BITMASK = 0xff;
 const __m256i add8 = _mm256_set1_epi32(8);
 const __m256i add64 = _mm256_set1_epi32(64);
 const int base[8] = {0,1,2,3,4,5,6,7};
-
 int expandToIndex(Bitmap *bitmap, int *out, int vector_size)
 {
    int *initout = out;
@@ -253,6 +254,15 @@ int count_bitmap(Bitmap *bitmap, int start, int end)
 };
 bool all_zero(Bitmap *bitmap, int vector_size)
 {
+   #ifdef __AVX2__
+   const __m256i zero_vec = _mm256_set1_epi8(char(0));
+   for (int i = 0; i < vector_size; i+=32){
+      if (~_mm256_movemask_epi8(_mm256_cmpeq_epi8(*(__m256i*) &bitmap[i], zero_vec))){
+         return false;
+      }
+   }
+   return true;
+   #else
    for (int i = 0; i < vector_size; i++)
    {
       if (bitmap[i])
@@ -261,6 +271,7 @@ bool all_zero(Bitmap *bitmap, int vector_size)
       }
    }
    return true;
+   #endif
 };
 
 void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
@@ -268,16 +279,30 @@ void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_si
       out[i] = ~(bitmap_a[i] & bitmap_b[i]);
    }
 };
+
 void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
+   #ifdef __AVX2__
+   for(int i = 0; i < vector_size; i+=32){
+      // order of bitmap_a and bitmap_b matters!
+      *(__m256i *) &out[i] = _mm256_andnot_si256(*(__m256i *) &bitmap_b[i], *(__m256i *) &bitmap_a[i]);
+   }
+   #else
    for(int i = 0; i < vector_size; i++){
       out[i] = bitmap_a[i] & ~bitmap_b[i];
    }
+   #endif
 };
 
 void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
+   #ifdef __AVX2__
+   for(int i = 0; i < vector_size; i+=32){
+      *(__m256i *) &out[i] = _mm256_and_si256(*(__m256i *) &bitmap_a[i], *(__m256i *) &bitmap_b[i]);
+   }
+   #else
    for(int i = 0; i < vector_size; i++){
       out[i] = bitmap_a[i] & bitmap_b[i];
    }
+   #endif
 };
 void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size){
    for(int i = 0; i < vector_size; i++){

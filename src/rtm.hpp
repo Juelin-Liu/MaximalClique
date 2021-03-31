@@ -53,6 +53,12 @@ void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size);
 void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
+
+/**
+ * @note out = bitmap_a \ bitmap_b
+ * @return number of zeros in out
+ * */
+int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void fill_with_one(Bitmap * bitmap, int num_one);
 void mark_as_one(Bitmap * bitmap, int index);
 void mark_as_zero(Bitmap * bitmap, int index);

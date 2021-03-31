@@ -156,14 +156,6 @@ int LoiMaximalClique::maximal_clique_bk2()
 
 int LoiMaximalClique::maximal_clique_bk()
 {
-    // int buffer_vector_size = get_vector_size<Bitmap>(max_deg);
-    // matrix = (Bitmap *)calloc(max_deg * buffer_vector_size, sizeof(Bitmap));
-    // P_vec_pool = (Bitmap *)calloc((max_deg + 1) * buffer_vector_size, sizeof(Bitmap));
-    // X_vec_pool = (Bitmap *)calloc((max_deg + 1) * buffer_vector_size, sizeof(Bitmap));
-    // index_pool = (int *)calloc(max_deg * buffer_vector_size, sizeof(int));
-    // R_vec = (Bitmap *)calloc(buffer_vector_size, sizeof(Bitmap));
-    // R = (int *)calloc(max_deg + 1, sizeof(int));
-    // index_vec = (int *)calloc(max_deg, sizeof(int));
     set_buffer_capacity(max_deg);
     index_vec[0] = -1;
     mc_num = 0, u_id = 0, p_set_idx = 0;
@@ -209,14 +201,6 @@ int LoiMaximalClique::maximal_clique_bk()
 // TODO implement this
 int LoiMaximalClique::maximal_clique_pivot()
 {
-    // int buffer_vector_size = get_vector_size<Bitmap>(max_deg);
-    // matrix = (Bitmap *)calloc(max_deg * buffer_vector_size, sizeof(Bitmap));
-    // P_vec_pool = (Bitmap *)calloc((max_deg + 1) * buffer_vector_size, sizeof(Bitmap));
-    // X_vec_pool = (Bitmap *)calloc((max_deg + 1) * buffer_vector_size, sizeof(Bitmap));
-    // index_pool = (int *)calloc(max_deg * buffer_vector_size, sizeof(int));
-    // R_vec = (Bitmap *)calloc(buffer_vector_size, sizeof(Bitmap));
-    // R = (int *)calloc(max_deg + 1, sizeof(int));
-    // index_vec = (int *)calloc(max_deg, sizeof(int));
     set_buffer_capacity(max_deg);
     index_vec[0] = -1;
     mc_num = 0, u_id = 0, p_set_idx = 0;
@@ -278,11 +262,6 @@ void LoiMaximalClique::dfs_avx2(int v_index, int depth)
     // compute the cliques formed with all visiting vertexes
     bitwise_and(get_bitmap(v_index), get_pvec(depth - 1), get_pvec(depth), aligned_root_vector_size);
     bitwise_and(get_bitmap(v_index), get_xvec(depth - 1), get_xvec(depth), aligned_root_vector_size);
-    // LOG("depth: " << depth);
-    // LOG("visiting indexes: " << to_string(index_vec, depth));
-    // LOG("p_vec: " << bitmap_to_string(get_pvec(depth), root_vector_size));
-    // LOG("x_vec: " << bitmap_to_string(get_xvec(depth), root_vector_size));
-
     // no more to explore
     // get candidates for next visit
     if (all_zero(get_pvec(depth), root_vector_size))
@@ -299,32 +278,12 @@ void LoiMaximalClique::dfs_avx2(int v_index, int depth)
                 pool_mc[pool_mc_idx++] = -1;
             }
             maximum_clique_size = std::max(maximum_clique_size, depth + 1);
-            // if (root_start == 0)
-            // {
-            //     LOG("id: " << R[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
-            //     LOG("pool_edges: " << to_string(pool_edges + root_start, root_deg));
-            //     LOG("matrix: \n"
-            //         << matrix_to_string());
-            //     LOG("P_vec_pool: " << bitmap_to_string(get_pvec(depth), root_vector_size));
-            //     LOG("index_vec: " << to_string(index_vec, depth + 1));
-            //     LOG("R: " << to_string(R, depth + 1) << "\n");
-            // }
-            // LOG("Found\n");
-            // LOG("index_vec: " << to_string(index_vec, depth + 1));
         }
-
-        // max_pool_sets_idx = std::max(max_pool_sets_idx, depth + 1);
         return;
     }
-    // choose a pivot point
-    // int pivot_index = find_first_index(get_pvec(depth), root_vector_size);
-    // assert(pivot_index != -1);
-    // LOG("pivot: " << pivot_index);
     bitwise_andn(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
-    // bitwise_andn(get_nvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
     int num = expandToIndex(get_nvec(depth), get_nset(depth), root_vector_size);
     int *next = get_nset(depth);
-    // LOG("next: " << to_string(next, num) << "\n");
     for (int i = 0; i < num; i++)
     {
         dfs_avx2(next[i], depth + 1);
@@ -383,7 +342,6 @@ void LoiMaximalClique::dfs_avx2_pivot(int v_index, int depth)
     // choose a pivot point
     int pivot_index = find_first_index(get_pvec(depth), root_vector_size);
     assert(pivot_index != -1);
-    // LOG("pivot: " << pivot_index);
     bitwise_andn(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
     bitwise_andn(get_nvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
     int num = expandToIndex(get_nvec(depth), get_nset(depth), root_vector_size);
