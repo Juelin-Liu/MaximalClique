@@ -3,6 +3,7 @@
 #include "table.h"
 #include "util.hpp"
 typedef uint8_t Bitmap;
+typedef __m256i AlignType;
 /**
  * @param deg number of neighbors
  * @return size of the bitmap vector (bytes)
@@ -11,7 +12,7 @@ template <typename T>
 int get_vector_size(int deg)
 {
    const int bitwidth = sizeof(T) * 8;
-   return (deg % bitwidth) ? deg / bitwidth + 1: deg / bitwidth;
+   return (deg % bitwidth) ? (deg / bitwidth + 1) * sizeof(T): (deg / bitwidth) * sizeof(T);
 };
 /**
  * @param bitmap triangle intersection vector to be expanded

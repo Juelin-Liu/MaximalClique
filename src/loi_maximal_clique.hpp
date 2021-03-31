@@ -17,6 +17,8 @@ public:
     int maximal_clique_bk();
     int maximal_clique_pivot();
     int maximal_clique_degen();
+    int maximal_clique_bk2();
+
     void save_answers(const char *file_path);
     void start_report();
 
@@ -34,19 +36,22 @@ private:
     int *temp_set = NULL;
     int max_pool_sets_idx = 0, maximum_clique_size = 0;
     int intersect_call_time = 0, big_intersect_call_time = 0;
-    int next_pool_idx = 0;
     int max_vector_size, root_vector_size, root_deg, root_offset, root_start;
-    int cur_index, cur_depth ;
+    int max_aligned_vector_size, aligned_root_vector_size;
+    int cur_index, cur_depth;    
+    int p_set_idx = 0;
+
     Bitmap *matrix;
     Bitmap *P_vec_pool; // cache P_vec
     Bitmap *X_vec_pool; // X_vec
-    // Bitmap *P_vec; // P
-    // Bitmap *R_vec;  // R
+    Bitmap *R_vec;  // R
+    Bitmap *next_vec_pool;
+    int *next_set_pool;
     // Bitmap *X_vec; // X
     int *index_vec;
     int *index_pool;       
-    int *id_vec;
-    int *next_pool;
+    int *R;
+    bool *visited;
     int build_matrix(const QVertex &u);
     /** 
      * @param u the root vertex
@@ -54,7 +59,7 @@ private:
      * */
     Bitmap *get_bitmap(int index)
     {
-        return &matrix[index * root_vector_size];
+        return &matrix[index * aligned_root_vector_size];
     };
     /**
      * @param depth the depth of the recursive call (shall be <= deg)
@@ -62,7 +67,7 @@ private:
      * */
     Bitmap *get_pvec(int depth)
     {
-        return &P_vec_pool[depth * root_vector_size];
+        return &P_vec_pool[depth * aligned_root_vector_size];
     };
     /**
      * @param depth the depth of the recursive call (shall be <= deg)
@@ -70,8 +75,18 @@ private:
      * */
     Bitmap *get_xvec(int depth)
     {
-        return &X_vec_pool[depth * root_vector_size];
+        return &X_vec_pool[depth * aligned_root_vector_size];
     };
+
+    /**
+     * @param depth the depth of the recursive call (shall be <= deg)
+     * @return the clique bitmap of the root vertex and the given vertex
+     * */
+    Bitmap *get_nvec(int depth)
+    {
+        return &next_vec_pool[depth * aligned_root_vector_size];
+    };
+    
     /**
      * @param depth the depth of the recursive call (shall be <= deg)
      * @return the clique bitmap of the root vertex and the given vertex
@@ -80,9 +95,20 @@ private:
     {
         return &index_pool[depth * root_deg];
     };
+    int* get_nset(int depth){
+        return &next_set_pool[depth * root_deg];
+    }
+    /**
+     * @param deg degree of root vertex
+     * */
+    void set_buffer_capacity(size_t deg);
+    void free_buffer();
+
     void dfs_clz(int v_index, int depth);
     void dfs_avx2(int v_index, int depth);
     void dfs_avx2_pivot(int v_index, int depth);
+
+
     std::string matrix_to_string()
     {
         std::string result = "";
