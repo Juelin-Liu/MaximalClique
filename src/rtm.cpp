@@ -345,6 +345,22 @@ void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_siz
    }
 #endif
 };
+
+void bitwise_or(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+{
+#ifdef __AVX2__
+   for (int i = 0; i < vector_size; i += 32)
+   {
+      *(__m256i *)&out[i] = _mm256_or_si256(*(__m256i *)&bitmap_a[i], *(__m256i *)&bitmap_b[i]);
+   }
+#else
+   for (int i = 0; i < vector_size; i++)
+   {
+      out[i] = bitmap_a[i] & bitmap_b[i];
+   }
+#endif
+};
+
 void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size)
 {
    for (int i = 0; i < vector_size; i++)
@@ -408,4 +424,13 @@ void mark_as_one(Bitmap *bitmap, int index)
 void mark_as_zero(Bitmap *bitmap, int index)
 {
    bitmap[index / 8] ^= 1 << (index % 8);
+};
+
+bool is_zero(Bitmap *bitmap, int pos){
+   uint8_t bits = bitmap[pos / 8];
+   int offset = pos % 8;
+   return (bits & (1 << offset) == 0);
+};
+bool is_one(Bitmap *bitmap, int pos){
+   return !is_zero(bitmap, pos);
 };

@@ -15,9 +15,9 @@ struct timeval time_end;
 
 string graph_file_path = "../data/amazon";
 string output_file_path = "../output/amazon_loi_pv";
-BPMaximalClique mc;
-// OrgMaximalClique mc;
-// LoiMaximalClique mc;
+// BPMaximalClique mc;
+//OrgMaximalClique mc;
+LoiMaximalClique mc;
 
 int main(int argc, char* argv[])
 {

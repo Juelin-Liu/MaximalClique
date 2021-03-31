@@ -1,5 +1,6 @@
 # CliqueX
-A new algorithm for clique finding in dense graphs.
+A much faster algorithm for clique finding in dense graphs.
+
 ### Project Structure
 - `src` directory contains the source code. Many thanks to Shuo Han, Lei Zou, and Jeffrey Xu Yu, who provided the [baseline](https://github.com/pkumod/GraphSetIntersection) for comparison. 
 - `data` contains the scripts for downloading data.
@@ -11,6 +12,9 @@ In `src` directory run `make`. It will generate two binaries: `mc`, which is for
 To find maximal clique in a graph use:
 > ./mc [ path to graph file ] [ path to output file]
 
+For instance find maximal clique in `data/reactome`:
+> ./mc ../data/reactome
+
 For downloading the graph file. Switch to `data` directory, run:
 > bash init.sh
 
@@ -19,14 +23,14 @@ The `init.sh` script will download four undirected datasets from [SNAP](http://s
 After the graph is downloaded, you can the following command to find all maximal clique in graph `amazon` and output to `amaozn_mc`:
 > ./src/mc ./data/amazon ./mc_result/amazon_mc
 
-### Graphs Downloaded
-The four graphs are: 
-| Graph Name | Vertex Number | Edge Number |
-| --- | --- | --- |
-| amazon | 334,863 | 925,872 |
-| youtube | 1,134,890 | 2,987,624 |
-| lj | 3,997,962 | 34,681,189 |
-| orkut | 3,072,441 | 117,185,083 |
+### Graphs Included
+The graph included is `reactome`: 
+| Graph Name | Vertex Number | Edge Number | Triangle Count |
+| --- | --- | --- | --- |
+| reactome | 6,327 | 147,547 | 4,187,734 |
+
+Despite the small vertex number in the graph, its edges are enormous which makes it difficult to process.
+
 
 
 ### Introduction

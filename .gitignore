@@ -30,6 +30,9 @@
 *.exe
 *.out
 *.app
+src/mc 
+src/reorder
+output/*
 test/*
 mc_result/*
 data/*

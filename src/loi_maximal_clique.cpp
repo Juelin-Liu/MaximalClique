@@ -60,6 +60,7 @@ void LoiMaximalClique::set_buffer_capacity(size_t deg)
     align_malloc((void **)&X_vec_pool, sizeof(AlignType), (deg + 1) * aligned_buffer_vector_size);
     align_malloc((void **)&next_vec_pool, sizeof(AlignType), (deg + 1) * aligned_buffer_vector_size);
     R = (int *)malloc(sizeof(int) * deg);
+    X = (int *)malloc(sizeof(int) * deg);
     next_set_pool = (int *)malloc(sizeof(int) * deg * deg);
     index_vec = (int *)malloc(sizeof(int) * (deg + 1));
 };
@@ -90,17 +91,12 @@ void LoiMaximalClique::free_buffer()
     {
         free(R);
     }
+    if(X != NULL){
+        free(X);
+    }
 }
-
-int LoiMaximalClique::build_matrix(const QVertex &a)
-{
-    int triangles = 0;
-    root_start = a.start;
-    root_offset = a.offset;
-    root_deg = a.deg;
-    root_vector_size = get_vector_size<Bitmap>(a.deg);
+void LoiMaximalClique::init_R_X(const QVertex &a){
     aligned_root_vector_size = get_vector_size<AlignType>(a.deg);
-    memset(get_bitmap(0), 0, a.deg * aligned_root_vector_size * sizeof(Bitmap));
     memset(get_xvec(0), 0, aligned_root_vector_size* sizeof(Bitmap));
     memset(get_pvec(0), 0, aligned_root_vector_size* sizeof(Bitmap));
     for (int b_idx = 0; b_idx < a.deg; b_idx++)
@@ -109,16 +105,38 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
         if (visited[b_id])
         {
             mark_as_one(get_xvec(0), b_idx);
-        }
-        else
-        {
-            const QVertex &b = graph[b_id];
-            triangles += mark_intersect_simd8x(pool_edges + a.start, a.deg,
-                                               pool_edges + b.start, b.deg, get_bitmap(b_idx));
+        } else {
+            mark_as_one(get_pvec(0), b_idx);
         }
     }
-    fill_with_one(get_pvec(0), root_deg);
-    return triangles;
+
+}
+int LoiMaximalClique::build_matrix(const QVertex &a)
+{
+    int triangles = 0;
+    int p_index = 0, p_triangle_size = 0;
+    root_start = a.start;
+    root_offset = a.offset;
+    root_deg = a.deg;
+    root_vector_size = get_vector_size<Bitmap>(a.deg);
+    aligned_root_vector_size = get_vector_size<AlignType>(a.deg);
+    memset(get_bitmap(0), 0, a.deg * aligned_root_vector_size * sizeof(Bitmap));
+    for (int b_idx = 0; b_idx < a.deg; b_idx++)
+    {
+        const int b_id = pool_edges[a.start + b_idx];
+        if (!visited[b_id])
+        {
+            const QVertex &b = graph[b_id];
+            int t_num = mark_intersect_simd8x(pool_edges + a.start, a.deg,
+                                               pool_edges + b.start, b.deg, get_bitmap(b_idx)); 
+            if (t_num > p_triangle_size) {
+                p_triangle_size = t_num;
+                p_index = b_idx;
+            }      
+            // bitwise_andn(get_bitmap(b_idx), get_xvec(0), get_bitmap(b_idx), aligned_root_vector_size);
+        }
+    }
+    return p_index;
 }
 
 int LoiMaximalClique::maximal_clique_bk2()
@@ -131,10 +149,10 @@ int LoiMaximalClique::maximal_clique_bk2()
     index_vec = (int *)calloc(max_deg, sizeof(int));
     index_vec[0] = -1;
     mc_num = 0;
-    u_id = 0;
+    u_cnt = 0;
     for (QVertex &u : graph)
     {
-        R[0] = u_id++;
+        R[0] = u_cnt++;
         build_matrix(u);
         memset(P_vec_pool, 0xff, root_vector_size * sizeof(Bitmap));
         for (int v_index = u.offset; v_index < u.deg; v_index++)
@@ -158,11 +176,11 @@ int LoiMaximalClique::maximal_clique_bk()
 {
     set_buffer_capacity(max_deg);
     index_vec[0] = -1;
-    mc_num = 0, u_id = 0, p_set_idx = 0;
+    mc_num = 0, u_cnt = 0, p_set_idx = 0;
     visited = new bool[v_num];
     for (QVertex &u : graph)
     {
-        R[0] = u_id;
+        R[0] = u_cnt;
         build_matrix(u);
         // fill_with_one(get_xvec(0), root_offset);
         bitwise_andn(get_pvec(0), get_xvec(0), get_nvec(0), aligned_root_vector_size);
@@ -189,7 +207,7 @@ int LoiMaximalClique::maximal_clique_bk()
             mark_as_one(get_xvec(0), v_index);
             mark_as_zero(get_pvec(0), v_index);
         }
-        visited[u_id++] = true;
+        visited[u_cnt++] = true;
     }
     delete[] visited;
     free_buffer();
@@ -203,24 +221,20 @@ int LoiMaximalClique::maximal_clique_pivot()
 {
     set_buffer_capacity(max_deg);
     index_vec[0] = -1;
-    mc_num = 0, u_id = 0, p_set_idx = 0;
+    mc_num = 0, u_cnt = 0, p_set_idx = 0;
     visited = new bool[v_num];
     for (QVertex &u : graph)
     {
-        R[0] = u_id;
-        if (visited[u_id]){
-            u_id++;
+        R[0] = u_cnt;
+        
+        if (visited[u_cnt]){
+            u_cnt++;
             continue;
         }
-
-        build_matrix(u);
-        bitwise_andn(get_pvec(0), get_xvec(0), get_nvec(0), aligned_root_vector_size);
-
-        // choose the first vertex from P \ X
-        int pivot_index = find_first_index(get_nvec(0), root_vector_size); // herustic
-        if (pivot_index != -1){
-            bitwise_andn(get_nvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
-        }
+        init_R_X(u);
+        // choose the first vertex from X otherwise choose from P
+        int pivot_index = build_matrix(u);
+        bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
         int num = expand_ctz(get_nvec(0), get_nset(0), root_vector_size);
         int *next = get_nset(0);
         // LOG("id: " << R[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
@@ -239,7 +253,7 @@ int LoiMaximalClique::maximal_clique_pivot()
             mark_as_one(get_xvec(0), v_index);
             mark_as_zero(get_pvec(0), v_index);
         }
-        visited[u_id++] = true;
+        visited[u_cnt++] = true;
     }
     delete[] visited;
     free_buffer();
@@ -253,25 +267,18 @@ int LoiMaximalClique::maximal_clique_degen()
 {
     set_buffer_capacity(max_deg);
     index_vec[0] = -1;
-    mc_num = 0, u_id = 0, p_set_idx = 0;
+    mc_num = 0, u_cnt = 0, p_set_idx = 0;
     visited = new bool[v_num];
     std::vector<int> dorder = degeneracy_order();
-    for (int cur_id : dorder)
+    for (int v : dorder)
     {
-        u_id++;
-        R[0] = cur_id;
-        if (visited[cur_id]){
-            continue;
-        }
-        const QVertex& u = graph[cur_id];
-        build_matrix(u);
-        bitwise_andn(get_pvec(0), get_xvec(0), get_nvec(0), aligned_root_vector_size);
-
-        // choose the first vertex from P \ X
-        int pivot_index = find_first_index(get_nvec(0), root_vector_size); // herustic
-        if (pivot_index != -1){
-            bitwise_andn(get_nvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
-        }
+        u_cnt++;
+        R[0] = v;
+        const QVertex &u = graph[v];
+        init_R_X(u);
+        // choose the first vertex from X otherwise choose from P
+        int pivot_index = build_matrix(u);
+        bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
         int num = expand_ctz(get_nvec(0), get_nset(0), root_vector_size);
         int *next = get_nset(0);
         // LOG("id: " << R[0] << " offset: " << root_offset << " deg: " << root_deg << " vector_size: " << root_vector_size);
@@ -290,7 +297,7 @@ int LoiMaximalClique::maximal_clique_degen()
             mark_as_one(get_xvec(0), v_index);
             mark_as_zero(get_pvec(0), v_index);
         }
-        visited[cur_id] = true;
+        visited[v] = true;
     }
     delete[] visited;
     free_buffer();
@@ -389,8 +396,8 @@ void LoiMaximalClique::dfs_pivot(int v_index, int depth)
     assert(pivot_index != -1);
     bitwise_andn(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
     bitwise_andn(get_nvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
-    // int num = expand_avx2(get_nvec(depth), get_nset(depth), root_vector_size);
-    int num = expand_ctz(get_nvec(depth), get_nset(depth), root_vector_size);
+    int num = expand_avx2(get_nvec(depth), get_nset(depth), root_vector_size);
+    // int num = expand_ctz(get_nvec(depth), get_nset(depth), root_vector_size);
     int *next = get_nset(depth);
     // LOG("next: " << to_string(next, num) << "\n");
     for (int i = 0; i < num; i++)
@@ -548,6 +555,6 @@ void LoiMaximalClique::report_mc_num()
         {
             break;
         }
-        std::cout << counter << " seconds: " << mc_num << " vertex processesd: " << u_id << std::endl;
+        std::cout << counter << " seconds: " << mc_num << " vertex processesd: " << u_cnt << std::endl;
     }
 }

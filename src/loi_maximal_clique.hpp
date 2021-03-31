@@ -6,7 +6,7 @@
 class LoiMaximalClique
 {
 public:
-    int v_num, max_deg, u_id;
+    int v_num, max_deg, u_cnt;
     long long e_num;
 
     LoiMaximalClique();
@@ -22,7 +22,7 @@ public:
     void save_answers(const char *file_path);
     void start_report();
     void report_mc_num();
-
+    void init_R_X(const QVertex &a);
     // double intersect_time = 0.0;
     // unsigned long long intersect_cnt = 0;
     // struct timeval time_start;
@@ -41,7 +41,6 @@ private:
     int max_aligned_vector_size, aligned_root_vector_size;
     int cur_index, cur_depth;    
     int p_set_idx = 0;
-
     Bitmap *matrix;
     Bitmap *P_vec_pool; // cache P_vec
     Bitmap *X_vec_pool; // X_vec
@@ -52,7 +51,11 @@ private:
     int *index_vec;
     int *index_pool;       
     int *R;
+    int *X;
     bool *visited;
+    /**
+     * @return pivot index
+     * */
     int build_matrix(const QVertex &u);
     /**
      * @param deg degree of root vertex

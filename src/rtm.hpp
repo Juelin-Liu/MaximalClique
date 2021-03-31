@@ -52,6 +52,7 @@ void intersect(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
 bool intersect_allzero(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size);
 void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
+void bitwise_or(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 
@@ -64,6 +65,8 @@ void fill_with_one(Bitmap * bitmap, int num_one);
 void mark_as_one(Bitmap * bitmap, int index);
 void mark_as_zero(Bitmap * bitmap, int index);
 bool all_zero(Bitmap *bitmap, int vector_size);
+bool is_zero(Bitmap *bitmap, int pos);
+bool is_one(Bitmap *bitmap, int pos);
 /**
  * @param bitmap the coming bitstream
  * @param out place that holds the indices in the bitmap
