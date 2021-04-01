@@ -112,52 +112,10 @@ private:
         return &next_set_pool[depth * root_deg];
     }
 
-
-
-    std::string matrix_to_string()
-    {
-        std::string result = "";
-        for (int i = 0; i < root_deg; i++)
-        {
-            result += std::to_string(i) + " ";
-            Bitmap* bitmap = &matrix[i * root_vector_size];
-            result += bitmap_to_string(bitmap, root_vector_size);
-            result += "\n";
-        }
-        result.pop_back();
-        return result;
-    }
-    std::string to_string(int *vec, int size)
-    {
-        std::string result = "";
-        for (int i = 0; i < size; i++)
-        {
-            result += std::to_string(vec[i]) + " ";
-        }
-        return result;
-    }
-
-    std::string bitmap_to_string(Bitmap *bitmap_vec, int vector_size)
-    {
-        std::string result = "";
-        for (int j = 0; j < vector_size; j++)
-        {
-            Bitmap bitmap = bitmap_vec[j];
-            for (int k = 0; k < 8; k++)
-            {
-                if (bitmap & (1llu << k))
-                {
-                    result += "1";
-                }
-                else
-                {
-                    result += "0";
-                }
-            }
-            result += " ";
-        }
-        return result;
-    }
+    // debug
+    std::string matrix_to_string();
+    std::string to_string(int *vec, int size);
+    std::string bitmap_to_string(Bitmap *bitmap_vec, int vector_size);
 };
 
 #endif

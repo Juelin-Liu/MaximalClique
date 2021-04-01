@@ -39,31 +39,44 @@ int expand_avx2(Bitmap *bitmap, int *out, int vector_size)
 
 int expand_ctz(Bitmap *bitmap, int *out, int vector_size)
 {
-   uint64_t bitset;
-   uint64_t *bitmap_mask = (uint64_t *)bitmap;
-   int offset = vector_size % 8;
-   int aligned_size = vector_size - offset;
+   // uint64_t bitset;
+   // uint64_t *bitmap_mask = (uint64_t *)bitmap;
+   // int offset = vector_size % 8;
+   // int aligned_size = vector_size - offset;
+   // int pos = 0;
+   // for (int i = 0; i < aligned_size; i += 8)
+   // {
+   //    bitset = *(uint64_t *)(bitmap + i);
+   //    while (bitset != 0)
+   //    {
+   //       uint64_t t = bitset & -bitset;
+   //       int r = __builtin_ctzll(bitset);
+   //       out[pos++] = i * 8 + r;
+   //       bitset ^= t;
+   //    }
+   // }
+   // if (offset)
+   // {
+   //    bitset = *(uint64_t *)(bitmap + aligned_size);
+   //    bitset = (bitset << (64 - offset * 8)) >> (64 - offset * 8);
+   //    while (bitset != 0)
+   //    {
+   //       uint64_t t = bitset & -bitset;
+   //       int r = __builtin_ctzll(bitset);
+   //       out[pos++] = aligned_size * 8 + r;
+   //       bitset ^= t;
+   //    }
+   // }
+
    int pos = 0;
-   for (int i = 0; i < aligned_size; i += 8)
+   for (int i = 0; i < vector_size; i += 8)
    {
-      bitset = *(uint64_t *)(bitmap + i);
+      uint64_t bitset = *(uint64_t *)(bitmap + i);
       while (bitset != 0)
       {
          uint64_t t = bitset & -bitset;
          int r = __builtin_ctzll(bitset);
          out[pos++] = i * 8 + r;
-         bitset ^= t;
-      }
-   }
-   if (offset)
-   {
-      bitset = *(uint64_t *)(bitmap + aligned_size);
-      bitset = (bitset << (64 - offset * 8)) >> (64 - offset * 8);
-      while (bitset != 0)
-      {
-         uint64_t t = bitset & -bitset;
-         int r = __builtin_ctzll(bitset);
-         out[pos++] = aligned_size * 8 + r;
          bitset ^= t;
       }
    }
@@ -84,6 +97,31 @@ int expand_avx2_compress(Bitmap *bitmap, int *out, int vector_size)
          int r = __builtin_ctz(bitset);
          __m256i baseVec = _mm256_set1_epi32((i + r) * 8 - 1);
          uint8_t mask = bitmap[r + i];
+         __m256i vecA = _mm256_load_si256((const __m256i *)vecDecodeTable[mask]);
+         vecA = _mm256_add_epi32(baseVec, vecA);
+         _mm256_storeu_si256((__m256i *)out, vecA);
+         out += lengthTable[mask];
+         bitset ^= t;
+      };
+   }
+   return out - init_out;
+};
+
+int maskz_expand_avx2_compress(Bitmap * bitmask, Bitmap *bitmap, Bitmap * buffer, int *out, int vector_size)
+{
+   int *init_out = out;
+   const __m256i zero_vec = _mm256_set1_epi8(char(0));
+   for (int i = 0; i < vector_size; i += 32)
+   {
+      *(__m256i*) buffer = _mm256_andnot_si256(*(__m256i *)&bitmask[i], *(__m256i *)&bitmap[i]);
+      __m256i cmp_mask = _mm256_cmpeq_epi8(*(__m256i*) buffer, zero_vec);
+      uint32_t bitset = ~_mm256_movemask_epi8(cmp_mask);
+      while (bitset != 0)
+      {
+         uint32_t t = bitset & -bitset;
+         int r = __builtin_ctz(bitset);
+         __m256i baseVec = _mm256_set1_epi32((i + r) * 8 - 1);
+         uint8_t mask = buffer[r];
          __m256i vecA = _mm256_load_si256((const __m256i *)vecDecodeTable[mask]);
          vecA = _mm256_add_epi32(baseVec, vecA);
          _mm256_storeu_si256((__m256i *)out, vecA);
@@ -211,23 +249,23 @@ int mark_intersect_simd8x(int *set_a, int size_a, int *set_b, int size_b, Bitmap
    return cnt;
 };
 
-void intersect(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
-{
-   for (int i = 0; i < vector_size; i++)
-   {
-      out[i] = bitmap_a[i] & bitmap_b[i];
-   }
-}; // bitwise and operation
-bool intersect_allzero(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
-{
-   bool all_zero = 0;
-   for (int i = 0; i < vector_size; i++)
-   {
-      out[i] = bitmap_a[i] & bitmap_b[i];
-      all_zero |= out[i];
-   }
-   return all_zero == 0;
-}; // bitwise and operation
+// void intersect(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+// {
+//    for (int i = 0; i < vector_size; i++)
+//    {
+//       out[i] = bitmap_a[i] & bitmap_b[i];
+//    }
+// }; // bitwise and operation
+// bool intersect_allzero(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+// {
+//    bool all_zero = 0;
+//    for (int i = 0; i < vector_size; i++)
+//    {
+//       out[i] = bitmap_a[i] & bitmap_b[i];
+//       all_zero |= out[i];
+//    }
+//    return all_zero == 0;
+// }; // bitwise and operation
 
 int expand_avx2(Bitmap *bitmap, int *out, int start, int end)
 {
