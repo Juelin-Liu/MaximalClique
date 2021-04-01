@@ -1,6 +1,5 @@
 #ifndef _RTM_HPP_
 #define _RTM_HPP_
-#include "table.h"
 #include "util.hpp"
 typedef uint8_t Bitmap;
 typedef __m256i AlignType;
@@ -22,6 +21,8 @@ int get_vector_size(int deg)
 int expand_avx2(Bitmap *bitmap, int *out, int vector_size);
 int expand_ctz(Bitmap *bitmap, int *out, int vector_size);
 int expand_avx2_compress(Bitmap * bitmap, int *out, int vector_size);
+int mask_expand_avx2_compress(Bitmap * bitmask, Bitmap * bitmap, int *out, int vector_size);
+
 /**
  * @param bitmap triangle intersection vector to be expanded
  * @param out output vertex id place
@@ -55,12 +56,13 @@ void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_siz
 void bitwise_or(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
+void bitwise_and(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap* bitmap_b, Bitmap *a_out, Bitmap *b_out, int vector_size);
 
 /**
  * @note out = bitmap_a \ bitmap_b
  * @return number of zeros in out
  * */
-int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
+int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int vector_size);
 void fill_with_one(Bitmap * bitmap, int num_one);
 void mark_as_one(Bitmap * bitmap, int index);
 void mark_as_zero(Bitmap * bitmap, int index);

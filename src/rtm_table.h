@@ -9,7 +9,6 @@
 #define ALIGNED(x) __attribute__ ((aligned(x)))
 #endif
 #endif
-
 static uint8_t lengthTable[256] = {
     0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
     1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
