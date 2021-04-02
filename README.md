@@ -7,10 +7,16 @@ Faster Maximal Clique Algorithm
     - `bp_maximal_clique` contains the current state-of-the-art implementation.
     - `loi_maximal_clique` contains the this `CliqueX` implementation.`
 
+To switch between method, change the class type for the variable `mc` in `mc.cpp`.
+
 Special thanks to Shuo Han, Lei Zou, and Jeffrey Xu Yu, who provided the [source code](https://github.com/pkumod/GraphSetIntersection) the current state-of-the-art implementation and many useful APIs.
 
 - `data` contains the scripts for downloading data and reordering data.
 - `paper` contains the research paper that builds the foundation of this project.
+
+### Dependencies
+The project is designed to be as independent as possible. However, it still require hardware support. 
+Make sure your CPU support AVX2 instructions to achieve the best performance.
 
 ### How to Run
 In `src` directory run `make`. It will generate two binaries: `mc`, which is for maximal clique finding, and `reorder` which is for reordering the graph. 
@@ -26,6 +32,8 @@ The graph included is `reactome`:
 | Graph Name | Vertex Number | Edge Number | Triangle Count |
 | --- | --- | --- | --- |
 | reactome | 6,327 | 147,547 | 4,187,734 |
+
+Note, the graph is reindexed so the vertex ids start from 0 and are contiguous. 
 
 ### Introduction
 
@@ -83,7 +91,7 @@ If the pivot is chosen to minimize the number of recursive calls made by the alg
 
 An alternative method for improving the basic form of the Bron–Kerbosch algorithm involves forgoing pivoting at the outermost level of recursion, and instead choosing the ordering of the recursive calls carefully in order to minimize the sizes of the sets P of candidate vertices within each recursive call.
 
-The degeneracy of a graph G is the smallest number d such that every subgraph of G has a vertex with degree d or less. Every graph has a degeneracy ordering, an ordering of the vertices such that each vertex has d or fewer neighbors that come later in the ordering; a degeneracy ordering may be found in linear time by repeatedly selecting the vertex of minimum degree among the remaining vertices. If the order of the vertices v that the Bron–Kerbosch algorithm loops through is a degeneracy ordering, then the set P of candidate vertices in each call (the neighbors of v that are later in the ordering) will be guaranteed to have size at most d. The set X of excluded vertices will consist of all earlier neighbors of v, and may be much larger than d. In recursive calls to the algorithm below the topmost level of the recursion, the pivoting version can still be used.[6][7]
+The degeneracy of a graph G is the smallest number d such that every subgraph of G has a vertex with degree d or less. Every graph has a degeneracy ordering, an ordering of the vertices such that each vertex has d or fewer neighbors that come later in the ordering; a degeneracy ordering may be found in linear time by repeatedly selecting the vertex of minimum degree among the remaining vertices. If the order of the vertices v that the Bron–Kerbosch algorithm loops through is a degeneracy ordering, then the set P of candidate vertices in each call (the neighbors of v that are later in the ordering) will be guaranteed to have size at most d. The set X of excluded vertices will consist of all earlier neighbors of v, and may be much larger than d. In recursive calls to the algorithm below the topmost level of the recursion, the pivoting version can still be used.
 
 In pseudocode, the algorithm performs the following steps:
 
@@ -104,7 +112,7 @@ The degeneracy ordering mentioned above only handles the first pivoting vertex. 
 
 An intuitive way to think about pivoting vertex is it makes the DFS tree thinner by not visiting many possible branches. P becomes more and more selectively as the DFS depth increases, and probabliy we don't need to visit those branches at all. 
 
-A greedy way of selecting the pivoting vertex tries to minimize the new DFS calls in the current depth. To do this, for all vertex in P we need to compute the intersection of this vertex's neighbors with P. Then we choose the vertex with minimum intersection size as the pivoting vertex.
+A greedy way of selecting the "optimal" pivoting vertex is to minimize the DFS calls in the current branch. To do this, for all vertex in P or X we need to compute the intersection of this vertex's neighbors with P. Then we choose the vertex with the minimum intersection size as the pivoting vertex.
 
 In pseudocode:
 ```
@@ -112,7 +120,7 @@ algorithm BronKerboschGreedy(R, P, X) is
     if P and X are both empty then
         report R as a maximal clique
     
-    for each vertex u in P do:
+    for each vertex u in P ⋃ X do:
         U := P ⋂ N(u)
     choose u with Min(|U|)
 
@@ -122,4 +130,6 @@ algorithm BronKerboschGreedy(R, P, X) is
         X := X ⋃ {v}
 ```
 
-However, this process it self can be expensive, until now. 
+However, this process it self can be very expensive. In practive, many algorithms select the pivot vertex based on herustic (select the vertex with max degree). They can use graph reordering technique to make this selection O(1). Though the selection is not optimal, but it balance the cost of computing the "optimal" pivoting vertex exactly and the benefit it brings to the search. 
+
+CliqueX is designed with this in mind, it can compute the "optimal" pivoting vertexes on the fly at speed, which significantly speeds up the search on large and/or dense graphs. 
