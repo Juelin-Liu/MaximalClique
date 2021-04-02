@@ -126,7 +126,7 @@ void LoiMaximalClique::init_R_X(const QVertex &a)
 int LoiMaximalClique::build_matrix(const QVertex &a)
 {
     int triangles = 0;
-    int p_index = 0, p_triangle_size = 0;
+    int p_index = 0, p_triangle_size = 0, max_inter_cnt = 0;
     root_start = a.start;
     root_offset = a.offset;
     root_deg = a.deg;
@@ -143,15 +143,25 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
             const QVertex &b = graph[b_id];
             int t_num = mark_intersect_simd8x(pool_edges + a.start, a.deg,
                                               pool_edges + b.start, b.deg, get_bitmap(b_idx));
-            triangle_cnt[b_idx] = t_num;
-            if (t_num > p_triangle_size)
-            {
-                p_triangle_size = t_num;
+            
+            // herustic 2 choose v with maximum triangle
+            // triangle_cnt[b_idx] = t_num;
+            // if (t_num > p_triangle_size)
+            // {
+            //     p_triangle_size = t_num;
+            //     p_index = b_idx;
+            // }
+
+            // herustic 3 choose v that minimize P \ N(v)
+            int b_intern_cnt = bitwise_and_count(get_bitmap(b_idx), get_pvec(0), root_vector_size);
+            if (b_intern_cnt > max_inter_cnt){
                 p_index = b_idx;
+                max_inter_cnt = b_intern_cnt;
             }
-            // bitwise_andn(get_bitmap(b_idx), get_xvec(0), get_bitmap(b_idx), aligned_root_vector_size);
         }
     }
+    // herustic 3 choose v that minimize P \ N(v)
+    pivot_inter_cnt[0] = max_inter_cnt;
     return p_index;
 }
 
@@ -204,8 +214,9 @@ int LoiMaximalClique::maximal_clique_pivot()
         init_R_X(u);
         // choose the first vertex from X otherwise choose from P
         int pivot_index = build_matrix(u);
-        pivot_inter_cnt[0] = bitwise_andn_count(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
-        int num = expand_ctz(get_nvec(0), get_nset(0), root_vector_size);
+        // bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
+        // int num = expand_ctz(get_nvec(0), get_nset(0), root_vector_size);
+        int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_nset(0), root_vector_size);
         int *next = get_nset(0);
         for (int i = 0; i < num; i++)
         {
@@ -239,11 +250,12 @@ int LoiMaximalClique::maximal_clique_degen()
         init_R_X(u);
         // choose the v with max triangles
         int pivot_index = build_matrix(u);
+
         // bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
         // int num = expand_ctz(get_nvec(0), get_nset(0), root_vector_size);
-        // int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_nset(0), root_vector_size);
-        pivot_inter_cnt[0] = bitwise_andn_count(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
-        int num = expand_avx2_compress(get_nvec(0), get_nset(0), root_vector_size);
+        // int num = expand_avx2_compress(get_nvec(0), get_nset(0), root_vector_size);
+
+        int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_nset(0), root_vector_size);
 
         int *next = get_nset(0);
         for (int i = 0; i < num; i++)
@@ -347,8 +359,15 @@ void LoiMaximalClique::dfs_pivot(int v_index, int depth)
     // herustic 3, choose v thath minimize P \ N(v)
     if (pivot_inter_cnt[depth - 1] > 0) {
         int pivot_index = -1, max_intersect_cnt = 0;
-        int pnum = expand_avx2_compress(get_pvec(depth), get_nset(depth), root_vector_size);
         int *pnext = get_nset(depth);
+        // not considering x
+        // int pnum = expand_avx2_compress(get_pvec(depth), get_nset(depth), root_vector_size);
+
+        // considering x
+        // bitwise_or(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
+        // bitwise_andn(get_nvec(depth), get_xvec(0), get_nvec(0), aligned_root_vector_size);
+        // int pnum = expand_avx2_compress(get_pvec(depth), get_nset(depth), root_vector_size);
+        int pnum = maskzor_expand_avx2_compress(get_xvec(0), get_pvec(depth), get_xvec(depth), simd_buffer, pnext, root_vector_size);
         for (int i = 0; i < pnum; i++)
         {
             int p_idx = pnext[i];

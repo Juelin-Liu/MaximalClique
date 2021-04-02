@@ -22,7 +22,7 @@
 #define SIMD_MODE 1 // 0:naive 1: filter
 typedef int PackBase;
 typedef uint8_t Bitmap;
-
+typedef __m256i AlignType;
 #ifdef SI64
 typedef long long PackState;
 #else

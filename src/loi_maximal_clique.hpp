@@ -2,7 +2,8 @@
 #define _LOI_MAXIMAL_CLIQUE_H
 
 #include "util.hpp"
-#include "rtm.hpp"
+// #include "rtm.hpp"
+#include "rtm_inline.h"
 class LoiMaximalClique
 {
 public:

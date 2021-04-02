@@ -1,4 +1,6 @@
-#include "rtm.hpp"
+#ifndef _RTM_INLINE_HPP_
+#define _RTM_INLINE_HPP_
+#include "util.hpp"
 #include "rtm_table.h"
 #define __AVX2__ 1
 
@@ -10,7 +12,15 @@ const Bitmap BITMASK = 0xff;
 const __m256i add8 = _mm256_set1_epi32(8);
 const __m256i add64 = _mm256_set1_epi32(64);
 const int base[8] = {0, 1, 2, 3, 4, 5, 6, 7};
-int expand_avx2(Bitmap *bitmap, int *out, int vector_size)
+
+template <typename T>
+int get_vector_size(int deg)
+{
+   const int bitwidth = sizeof(T) * 8;
+   return (deg % bitwidth) ? (deg / bitwidth + 1) * sizeof(T) : (deg / bitwidth) * sizeof(T);
+};
+
+inline int expand_avx2(Bitmap *bitmap, int *out, int vector_size)
 {
    int *initout = out;
    __m256i baseVec = _mm256_set1_epi32(-1);
@@ -37,7 +47,7 @@ int expand_avx2(Bitmap *bitmap, int *out, int vector_size)
    return out - initout;
 };
 
-int expand_ctz(Bitmap *bitmap, int *out, int vector_size)
+inline int expand_ctz(Bitmap *bitmap, int *out, int vector_size)
 {
    // uint64_t bitset;
    // uint64_t *bitmap_mask = (uint64_t *)bitmap;
@@ -83,7 +93,7 @@ int expand_ctz(Bitmap *bitmap, int *out, int vector_size)
    return pos;
 };
 
-int expand_avx2_compress(Bitmap *bitmap, int *out, int vector_size)
+inline int expand_avx2_compress(Bitmap *bitmap, int *out, int vector_size)
 {
    int *init_out = out;
    const __m256i zero_vec = _mm256_set1_epi8(char(0));
@@ -107,7 +117,7 @@ int expand_avx2_compress(Bitmap *bitmap, int *out, int vector_size)
    return out - init_out;
 };
 
-int maskz_expand_avx2_compress(Bitmap *bitmask, Bitmap *bitmap, Bitmap *buffer, int *out, int vector_size)
+inline int maskz_expand_avx2_compress(Bitmap *bitmask, Bitmap *bitmap, Bitmap *buffer, int *out, int vector_size)
 {
    int *init_out = out;
    const __m256i zero_vec = _mm256_set1_epi8(char(0));
@@ -132,7 +142,7 @@ int maskz_expand_avx2_compress(Bitmap *bitmask, Bitmap *bitmap, Bitmap *buffer, 
    return out - init_out;
 };
 
-int maskzor_expand_avx2_compress(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int *out, int vector_size)
+inline int maskzor_expand_avx2_compress(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int *out, int vector_size)
 {
    int *init_out = out;
    const __m256i zero_vec = _mm256_set1_epi8(char(0));
@@ -158,7 +168,7 @@ int maskzor_expand_avx2_compress(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitm
    return out - init_out;
 };
 
-int expandToID(Bitmap *bitmap, int *out, int vector_size, int *id_list)
+inline int expandToID(Bitmap *bitmap, int *out, int vector_size, int *id_list)
 {
    int p = expand_avx2(bitmap, out, vector_size);
    for (int i = 0; i < p; i++)
@@ -168,7 +178,7 @@ int expandToID(Bitmap *bitmap, int *out, int vector_size, int *id_list)
    return p;
 };
 
-int mark_intersect(int *set_a, int size_a, int *set_b, int size_b, Bitmap *bitvec)
+inline int mark_intersect(int *set_a, int size_a, int *set_b, int size_b, Bitmap *bitvec)
 {
    int i = 0, j = 0, cnt = 0;
 
@@ -192,7 +202,7 @@ int mark_intersect(int *set_a, int size_a, int *set_b, int size_b, Bitmap *bitve
    }
    return cnt;
 };
-int mark_intersect_simd8x(int *set_a, int size_a, int *set_b, int size_b, Bitmap *bitvec)
+inline int mark_intersect_simd8x(int *set_a, int size_a, int *set_b, int size_b, Bitmap *bitvec)
 {
    int i = 0, j = 0, k = 0, cnt = 0;
    int qs_a = size_a - (size_a & 7);
@@ -275,25 +285,7 @@ int mark_intersect_simd8x(int *set_a, int size_a, int *set_b, int size_b, Bitmap
    return cnt;
 };
 
-// void intersect(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
-// {
-//    for (int i = 0; i < vector_size; i++)
-//    {
-//       out[i] = bitmap_a[i] & bitmap_b[i];
-//    }
-// }; // bitwise and operation
-// bool intersect_allzero(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
-// {
-//    bool all_zero = 0;
-//    for (int i = 0; i < vector_size; i++)
-//    {
-//       out[i] = bitmap_a[i] & bitmap_b[i];
-//       all_zero |= out[i];
-//    }
-//    return all_zero == 0;
-// }; // bitwise and operation
-
-int expand_avx2(Bitmap *bitmap, int *out, int start, int end)
+inline int expand_avx2(Bitmap *bitmap, int *out, int start, int end)
 {
    if (start == end)
       return 0;
@@ -331,7 +323,7 @@ int expand_avx2(Bitmap *bitmap, int *out, int start, int end)
    return out - initout;
 };
 
-int expandToID(Bitmap *bitmap, int *out, int *id_list, int start, int end)
+inline int expandToID(Bitmap *bitmap, int *out, int *id_list, int start, int end)
 {
    int p = expand_avx2(bitmap, out, start, end);
    for (int i = 0; i < p; i++)
@@ -341,7 +333,7 @@ int expandToID(Bitmap *bitmap, int *out, int *id_list, int start, int end)
    return p;
 };
 
-int count_bitmap(Bitmap *bitmap, int vector_size)
+inline int count_bitmap(Bitmap *bitmap, int vector_size)
 {
    int p = 0;
    for (int i = 0; i < vector_size - 8; i += 8)
@@ -355,7 +347,7 @@ int count_bitmap(Bitmap *bitmap, int vector_size)
    return p;
 };
 
-int count_bitmap(Bitmap *bitmap, int start, int end)
+inline int count_bitmap(Bitmap *bitmap, int start, int end)
 {
    if (start == end)
       return 0;
@@ -372,7 +364,7 @@ int count_bitmap(Bitmap *bitmap, int start, int end)
       return lengthTable[bitset];
    }
 };
-bool all_zero(Bitmap *bitmap, int vector_size)
+inline bool all_zero(Bitmap *bitmap, int vector_size)
 {
    // #ifdef __AVX2__
    //    const __m256i zero_vec = _mm256_set1_epi8(char(0));
@@ -396,7 +388,7 @@ bool all_zero(Bitmap *bitmap, int vector_size)
    // #endif
 };
 
-void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+inline void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
 {
    for (int i = 0; i < vector_size; i++)
    {
@@ -404,7 +396,7 @@ void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_si
    }
 };
 
-void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+inline void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
 {
 #ifdef __AVX2__
    for (int i = 0; i < vector_size; i += 32)
@@ -419,7 +411,8 @@ void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_si
    }
 #endif
 };
-int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size)
+
+inline int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size)
 {
 #ifdef __AVX2__
    int cnt = 0;
@@ -439,7 +432,7 @@ int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size)
    return cnt;
 #endif
 };
-int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap * out, int vector_size){
+inline int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap * out, int vector_size){
    #ifdef __AVX2__
    int cnt = 0;
    for (int i = 0; i < vector_size; i += 32)
@@ -461,7 +454,7 @@ int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap * out, int vec
 #endif
 };
 
-int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size)
+inline int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size)
 {
 #ifdef __AVX2__
    int cnt = 0;
@@ -484,7 +477,7 @@ int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size)
    #endif
 };
 
-int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
+inline int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
 #ifdef __AVX2__
    int cnt = 0;
    for (int i = 0; i < vector_size; i += 32)
@@ -508,7 +501,7 @@ int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vecto
 #endif
 };
 
-void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+inline void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
 {
 #ifdef __AVX2__
    for (int i = 0; i < vector_size; i += 32)
@@ -522,7 +515,8 @@ void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_siz
    }
 #endif
 };
-void double_bitwise_and(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *a_out, Bitmap *b_out, int vector_size)
+
+inline void double_bitwise_and(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *a_out, Bitmap *b_out, int vector_size)
 {
 #ifdef __AVX2__
    for (int i = 0; i < vector_size; i += 32)
@@ -540,7 +534,7 @@ void double_bitwise_and(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bit
 #endif
 };
 
-void bitwise_or(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
+inline void bitwise_or(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
 {
 #ifdef __AVX2__
    for (int i = 0; i < vector_size; i += 32)
@@ -555,7 +549,7 @@ void bitwise_or(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size
 #endif
 };
 
-void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size)
+inline void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size)
 {
    for (int i = 0; i < vector_size; i+=8)
    {
@@ -563,7 +557,7 @@ void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size)
    }
 };
 
-int find_first_index(Bitmap *bitmap, int vector_size)
+inline int find_first_index(Bitmap *bitmap, int vector_size)
 {
 #ifdef __AVX2__
    const __m256i zero_vec = _mm256_set1_epi8(char(0));
@@ -593,7 +587,7 @@ int find_first_index(Bitmap *bitmap, int vector_size)
 #endif
 };
 
-int find_last_index(Bitmap *bitmap, int vector_size)
+inline int find_last_index(Bitmap *bitmap, int vector_size)
 {
    for (int i = vector_size - 1; i >= 0; i--)
    {
@@ -607,7 +601,7 @@ int find_last_index(Bitmap *bitmap, int vector_size)
    return -1;
 };
 
-void fill_with_one(Bitmap *bitmap, int num_one)
+inline void fill_with_one(Bitmap *bitmap, int num_one)
 {
    if (num_one < 8)
    {
@@ -627,23 +621,24 @@ void fill_with_one(Bitmap *bitmap, int num_one)
    // }
 };
 
-void mark_as_one(Bitmap *bitmap, int index)
+inline void mark_as_one(Bitmap *bitmap, int index)
 {
    bitmap[index / 8] |= 1 << (index % 8);
 };
 
-void mark_as_zero(Bitmap *bitmap, int index)
+inline void mark_as_zero(Bitmap *bitmap, int index)
 {
    bitmap[index / 8] ^= 1 << (index % 8);
 };
 
-bool is_zero(Bitmap *bitmap, int pos)
+inline bool is_zero(Bitmap *bitmap, int pos)
 {
    uint8_t bits = bitmap[pos / 8];
    int offset = pos % 8;
    return (bits & (1 << offset) == 0);
 };
-bool is_one(Bitmap *bitmap, int pos)
+inline bool is_one(Bitmap *bitmap, int pos)
 {
    return !is_zero(bitmap, pos);
 };
+#endif
