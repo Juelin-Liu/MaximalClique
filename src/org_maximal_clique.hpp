@@ -31,7 +31,7 @@ private:
     std::vector<UVertex> graph;
     int *pool_edges = NULL;
     int *pool_sets = NULL;
-    int *pool_mc = NULL, pool_mc_idx = 0, mc_num = 0;
+    int *pool_mc = NULL, pool_mc_idx = 0; long long mc_num = 0;
     int u_cnt;
     int *temp_set = NULL;
     int max_pool_sets_idx = 0, maximum_clique_size = 0;

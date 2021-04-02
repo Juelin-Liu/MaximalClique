@@ -30,7 +30,7 @@ private:
     int *sets_base = NULL;
     PackState *sets_state = NULL;
 
-    int *pool_mc = NULL, pool_mc_idx = 0, mc_num = 0;
+    int *pool_mc = NULL, pool_mc_idx = 0; long long mc_num = 0;
    
     int max_pool_sets_idx = 0, maximum_clique_size = 0;
     int intersect_call_time = 0, big_intersect_call_time = 0;

@@ -107,24 +107,24 @@ int expand_avx2_compress(Bitmap *bitmap, int *out, int vector_size)
    return out - init_out;
 };
 
-int maskz_expand_avx2_compress(Bitmap * bitmask, Bitmap *bitmap, Bitmap * buffer, int *out, int vector_size)
+int maskz_expand_avx2_compress(Bitmap *bitmask, Bitmap *bitmap, Bitmap *buffer, int *out, int vector_size)
 {
    int *init_out = out;
    const __m256i zero_vec = _mm256_set1_epi8(char(0));
    for (int i = 0; i < vector_size; i += 32)
    {
-      *(__m256i*) buffer = _mm256_andnot_si256(*(__m256i *)&bitmask[i], *(__m256i *)&bitmap[i]);
-      __m256i cmp_mask = _mm256_cmpeq_epi8(*(__m256i*) buffer, zero_vec);
+      *(__m256i *)buffer = _mm256_andnot_si256(*(__m256i *)&bitmask[i], *(__m256i *)&bitmap[i]);
+      __m256i cmp_mask = _mm256_cmpeq_epi8(*(__m256i *)buffer, zero_vec);
       uint32_t bitset = ~_mm256_movemask_epi8(cmp_mask);
       while (bitset != 0)
       {
          uint32_t t = bitset & -bitset;
          int r = __builtin_ctz(bitset);
-         __m256i baseVec = _mm256_set1_epi32((i + r) * 8 - 1);
+         __m256i baseVec = _mm256_set1_epi32((i + r) * 8 - 1); // large overhead
          uint8_t mask = buffer[r];
          __m256i vecA = _mm256_load_si256((const __m256i *)vecDecodeTable[mask]);
          vecA = _mm256_add_epi32(baseVec, vecA);
-         _mm256_storeu_si256((__m256i *)out, vecA);
+         _mm256_storeu_si256((__m256i *)out, vecA); // large overhead
          out += lengthTable[mask];
          bitset ^= t;
       };
@@ -348,26 +348,26 @@ int count_bitmap(Bitmap *bitmap, int start, int end)
 };
 bool all_zero(Bitmap *bitmap, int vector_size)
 {
-#ifdef __AVX2__
-   const __m256i zero_vec = _mm256_set1_epi8(char(0));
-   for (int i = 0; i < vector_size; i += 32)
+   // #ifdef __AVX2__
+   //    const __m256i zero_vec = _mm256_set1_epi8(char(0));
+   //    for (int i = 0; i < vector_size; i += 32)
+   //    {
+   //       if (~_mm256_movemask_epi8(_mm256_cmpeq_epi8(*(__m256i *)&bitmap[i], zero_vec)))
+   //       {
+   //          return false;
+   //       }
+   //    }
+   //    return true;
+   // #else
+   for (int i = 0; i < vector_size; i += 8)
    {
-      if (~_mm256_movemask_epi8(_mm256_cmpeq_epi8(*(__m256i *)&bitmap[i], zero_vec)))
+      if (*(long long *)(bitmap + i))
       {
          return false;
       }
    }
    return true;
-#else
-   for (int i = 0; i < vector_size; i++)
-   {
-      if (bitmap[i])
-      {
-         return false;
-      }
-   }
-   return true;
-#endif
+   // #endif
 };
 
 void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
@@ -393,18 +393,15 @@ void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_si
    }
 #endif
 };
-int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int vector_size)
+int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size)
 {
 #ifdef __AVX2__
    int cnt = 0;
    for (int i = 0; i < vector_size; i += 32)
    {
       // order of bitmap_a and bitmap_b matters!
-      _mm256_store_si256((__m256i *)buffer, _mm256_andnot_si256(*(__m256i *)&bitmap_b[i], *(__m256i *)&bitmap_a[i]));
-      cnt += __builtin_popcountll(*(long long *)&buffer[0]);
-      cnt += __builtin_popcountll(*(long long *)&buffer[16]);
-      cnt += __builtin_popcountll(*(long long *)&buffer[32]);
-      cnt += __builtin_popcountll(*(long long *)&buffer[48]);
+      __m256i and_not_mask = _mm256_andnot_si256(*(__m256i *)&bitmap_b[i], *(__m256i *)&bitmap_a[i]);
+      cnt += __builtin_popcountll(_mm256_extract_epi64(and_not_mask, 0)) + __builtin_popcountll(_mm256_extract_epi64(and_not_mask, 1)) + __builtin_popcountll(_mm256_extract_epi64(and_not_mask, 2)) + __builtin_popcountll(_mm256_extract_epi64(and_not_mask, 3));
    }
    return cnt;
 #else
@@ -416,53 +413,75 @@ int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int v
    return cnt;
 #endif
 };
-int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int vector_size)
+int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap * out, int vector_size){
+   #ifdef __AVX2__
+   int cnt = 0;
+   for (int i = 0; i < vector_size; i += 32)
+   {
+      // order of bitmap_a and bitmap_b matters!
+      __m256i and_not_mask = _mm256_andnot_si256(*(__m256i *)&bitmap_b[i], *(__m256i *)&bitmap_a[i]);
+      _mm256_store_si256((__m256i*) (out + i), and_not_mask);
+      cnt += __builtin_popcountll(_mm256_extract_epi64(and_not_mask, 0)) + __builtin_popcountll(_mm256_extract_epi64(and_not_mask, 1)) + __builtin_popcountll(_mm256_extract_epi64(and_not_mask, 2)) + __builtin_popcountll(_mm256_extract_epi64(and_not_mask, 3));
+   }
+   return cnt;
+#else
+   int cnt = 0;
+   for (int i = 0; i < vector_size; i+=8)
+   {
+      *(long long *)(out+i) = *(long long *)lengthTable[bitmap_a[i] & (~ *(long long *)bitmap_b[i]]);
+      cnt += __builtin_popcountll(*(long long *)(out+i));
+   }
+   return cnt;
+#endif
+};
+
+int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size)
 {
 #ifdef __AVX2__
    int cnt = 0;
    for (int i = 0; i < vector_size; i += 32)
    {
       __m256i andmask = _mm256_and_si256(*(__m256i *)&bitmap_b[i], *(__m256i *)&bitmap_a[i]);
-      _mm256_store_si256((__m256i *)buffer, andmask);
-      cnt += __builtin_popcountll(*(long long *)&buffer[0]);
-      cnt += __builtin_popcountll(*(long long *)&buffer[16]);
-      cnt += __builtin_popcountll(*(long long *)&buffer[32]);
-      cnt += __builtin_popcountll(*(long long *)&buffer[48]);
+      cnt += __builtin_popcountll(_mm256_extract_epi64(andmask, 0)) 
+      + __builtin_popcountll(_mm256_extract_epi64(andmask, 1)) 
+      + __builtin_popcountll(_mm256_extract_epi64(andmask, 2)) 
+      + __builtin_popcountll(_mm256_extract_epi64(andmask, 3));
    }
    return cnt;
 #else
    int cnt = 0;
-   for (int i = 0; i < vector_size; i++)
+   for (int i = 0; i < vector_size; i += 8)
    {
-      cnt += lengthTable[bitmap_a[i] & ~bitmap_b[i]];
+      cnt += __builtin_popcountll(*(long long *)(bitmap_a + i) & *(long long *)(bitmap_b + i));
    }
    return cnt;
-#endif
+   #endif
 };
-int bitwise_and_count_est(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int vector_size)
-{
+
+int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size){
 #ifdef __AVX2__
    int cnt = 0;
-   *(__m256i *)buffer = _mm256_set1_epi8(char(0));
    for (int i = 0; i < vector_size; i += 32)
    {
       __m256i andmask = _mm256_and_si256(*(__m256i *)&bitmap_b[i], *(__m256i *)&bitmap_a[i]);
-      *(__m256i *)buffer = _mm256_or_si256(andmask, *(__m256i *)buffer);
+      _mm256_store_si256((__m256i *) out, andmask);
+      cnt += __builtin_popcountll(_mm256_extract_epi64(andmask, 0)) 
+      + __builtin_popcountll(_mm256_extract_epi64(andmask, 1)) 
+      + __builtin_popcountll(_mm256_extract_epi64(andmask, 2)) 
+      + __builtin_popcountll(_mm256_extract_epi64(andmask, 3));
    }
-   cnt += __builtin_popcountll(*(long long *)&buffer[0]);
-   cnt += __builtin_popcountll(*(long long *)&buffer[16]);
-   cnt += __builtin_popcountll(*(long long *)&buffer[32]);
-   cnt += __builtin_popcountll(*(long long *)&buffer[48]);
    return cnt;
 #else
    int cnt = 0;
-   for (int i = 0; i < vector_size; i++)
+   for (int i = 0; i < vector_size; i += 8)
    {
-      cnt += lengthTable[bitmap_a[i] & ~bitmap_b[i]];
+      *(long long *)(out+i) = *(long long *)(bitmap_a + i) & *(long long *)(bitmap_b + i);
+      cnt += __builtin_popcountll(*(long long *)(out+i);
    }
    return cnt;
 #endif
 };
+
 void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size)
 {
 #ifdef __AVX2__
@@ -473,11 +492,11 @@ void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_siz
 #else
    for (int i = 0; i < vector_size; i++)
    {
-      out[i] = bitmap_a[i] & bitmap_b[i];
+      *(long long *)&out[i] = *(long long *)&bitmap_a[i] & *(long long *)&bitmap_b[i];
    }
 #endif
 };
-void bitwise_and(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *a_out, Bitmap *b_out, int vector_size)
+void double_bitwise_and(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *a_out, Bitmap *b_out, int vector_size)
 {
 #ifdef __AVX2__
    for (int i = 0; i < vector_size; i += 32)
@@ -503,18 +522,18 @@ void bitwise_or(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size
       _mm256_store_si256((__m256i *)&out[i], _mm256_or_si256(*(__m256i *)&bitmap_a[i], *(__m256i *)&bitmap_b[i]));
    }
 #else
-   for (int i = 0; i < vector_size; i++)
+   for (int i = 0; i < vector_size; i+=8)
    {
-      out[i] = bitmap_a[i] & bitmap_b[i];
+      *(long long *)&out[i] = *(long long *)&bitmap_a[i] & *(long long *)&bitmap_b[i];
    }
 #endif
 };
 
 void bitwise_not(Bitmap *bitmap_a, Bitmap *out, int vector_size)
 {
-   for (int i = 0; i < vector_size; i++)
+   for (int i = 0; i < vector_size; i+=8)
    {
-      out[i] = ~bitmap_a[i];
+      *(long long *)&out[i] = ~ *(long long *)&bitmap_a[i];
    }
 };
 

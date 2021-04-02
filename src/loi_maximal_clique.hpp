@@ -48,6 +48,7 @@ private:
     Bitmap *next_vec_pool;
     Bitmap *simd_buffer;
     int *next_set_pool;
+    int *pivot_inter_cnt;
     // Bitmap *X_vec; // X
     int *triangle_cnt;
     int *index_vec;

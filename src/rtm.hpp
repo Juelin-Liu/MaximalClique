@@ -85,18 +85,19 @@ void bitwise_and(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_siz
 void bitwise_or(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void bitwise_nand(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
 void bitwise_andn(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, int vector_size);
-void bitwise_and(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *a_out, Bitmap *b_out, int vector_size);
+void double_bitwise_and(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *a_out, Bitmap *b_out, int vector_size);
 
 /**
  * @return number of ones in a and b
  * */
-int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int vector_size);
+int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size);
+int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out,int vector_size);
 
 /**
  * @return number of ones in a \ b
  * */
-int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int vector_size);
-
+int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, int vector_size);
+int bitwise_andn_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap * out, int vector_size);
 /**
  * @note fill bitmap with ones from beginning
  * */
