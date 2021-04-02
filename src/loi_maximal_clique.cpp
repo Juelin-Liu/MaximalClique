@@ -5,7 +5,6 @@ LoiMaximalClique::LoiMaximalClique()
 {
     v_num = 0;
     e_num = 0;
-    align_malloc((void **)&simd_buffer, sizeof(AlignType), sizeof(AlignType));
     align_malloc((void **)&pool_edges, 32, sizeof(int) * PACK_NODE_POOL_SIZE);
     align_malloc((void **)&pool_mc, 32, sizeof(int) * PACK_NODE_POOL_SIZE);
 }
@@ -59,11 +58,15 @@ void LoiMaximalClique::set_buffer_capacity(size_t deg)
     align_malloc((void **)&matrix, sizeof(AlignType), (deg + 1) * aligned_buffer_vector_size);
     align_malloc((void **)&P_vec_pool, sizeof(AlignType), (deg + 1) * aligned_buffer_vector_size);
     align_malloc((void **)&X_vec_pool, sizeof(AlignType), (deg + 1) * aligned_buffer_vector_size);
-    align_malloc((void **)&next_vec_pool, sizeof(AlignType), (deg + 1) * aligned_buffer_vector_size);
+    align_malloc((void **)&stack_pool, sizeof(AlignType), (deg + 1) * aligned_buffer_vector_size);
+    align_malloc((void **)&simd_buffer, sizeof(AlignType), sizeof(AlignType));
+
     R = (int *)malloc(sizeof(int) * deg);
     X = (int *)malloc(sizeof(int) * deg);
-    next_set_pool = (int *)malloc(sizeof(int) * deg * deg);
+    stack_set_pool = (int *)malloc(sizeof(int) * deg * deg);
     index_vec = (int *)malloc(sizeof(int) * (deg + 1));
+    stack_set_size = (int *)malloc(sizeof(int) * (deg + 1));
+    ;
     triangle_cnt = (int *)malloc(sizeof(int) * (deg + 1));
     pivot_inter_cnt = (int *)malloc(sizeof(int) * (deg + 1));
 };
@@ -82,9 +85,9 @@ void LoiMaximalClique::free_buffer()
     {
         free(X_vec_pool);
     }
-    if (next_set_pool != NULL)
+    if (stack_set_pool != NULL)
     {
-        free(next_set_pool);
+        free(stack_set_pool);
     }
     if (index_vec != NULL)
     {
@@ -135,6 +138,7 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
     memset(get_bitmap(0), 0, a.deg * aligned_root_vector_size * sizeof(Bitmap));
     memset(triangle_cnt, 0, a.deg * sizeof(int));
     memset(pivot_inter_cnt, 0, a.deg * sizeof(int));
+    memset(stack_set_size, 0, a.deg * sizeof(int));
     for (int b_idx = 0; b_idx < a.deg; b_idx++)
     {
         const int b_id = pool_edges[a.start + b_idx];
@@ -143,7 +147,7 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
             const QVertex &b = graph[b_id];
             int t_num = mark_intersect_simd8x(pool_edges + a.start, a.deg,
                                               pool_edges + b.start, b.deg, get_bitmap(b_idx));
-            
+
             // herustic 2 choose v with maximum triangle
             // triangle_cnt[b_idx] = t_num;
             // if (t_num > p_triangle_size)
@@ -154,7 +158,8 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
 
             // herustic 3 choose v that minimize P \ N(v)
             int b_intern_cnt = bitwise_and_count(get_bitmap(b_idx), get_pvec(0), root_vector_size);
-            if (b_intern_cnt > max_inter_cnt){
+            if (b_intern_cnt > max_inter_cnt)
+            {
                 p_index = b_idx;
                 max_inter_cnt = b_intern_cnt;
             }
@@ -165,7 +170,7 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
     return p_index;
 }
 
-int LoiMaximalClique::maximal_clique_bk()
+long long LoiMaximalClique::maximal_clique_bk()
 {
     set_buffer_capacity(max_deg);
     index_vec[0] = -1;
@@ -176,8 +181,8 @@ int LoiMaximalClique::maximal_clique_bk()
         R[0] = u_cnt;
         init_R_X(u);
         build_matrix(u);
-        int num = expand_avx2(get_nvec(0), get_nset(0), root_vector_size);
-        int *next = get_nset(0);
+        int num = expand_avx2(get_nvec(0), get_stack(0), root_vector_size);
+        int *next = get_stack(0);
         for (int i = 0; i < num; i++)
         {
             int v_index = next[i];
@@ -196,7 +201,7 @@ int LoiMaximalClique::maximal_clique_bk()
 }
 
 // TODO implement this
-int LoiMaximalClique::maximal_clique_pivot()
+long long LoiMaximalClique::maximal_clique_pivot()
 {
     set_buffer_capacity(max_deg);
     index_vec[0] = -1;
@@ -215,9 +220,9 @@ int LoiMaximalClique::maximal_clique_pivot()
         // choose the first vertex from X otherwise choose from P
         int pivot_index = build_matrix(u);
         // bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
-        // int num = expand_ctz(get_nvec(0), get_nset(0), root_vector_size);
-        int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_nset(0), root_vector_size);
-        int *next = get_nset(0);
+        // int num = expand_ctz(get_nvec(0), get_stack(0), root_vector_size);
+        int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_stack(0), root_vector_size);
+        int *next = get_stack(0);
         for (int i = 0; i < num; i++)
         {
             int v_index = next[i];
@@ -235,8 +240,9 @@ int LoiMaximalClique::maximal_clique_pivot()
     return mc_num;
 }
 
-int LoiMaximalClique::maximal_clique_degen()
+long long LoiMaximalClique::maximal_clique_degen()
 {
+    return maximal_clique_degen_onepunch();
     set_buffer_capacity(max_deg);
     index_vec[0] = -1;
     mc_num = 0, u_cnt = 0, p_set_idx = 0;
@@ -250,14 +256,11 @@ int LoiMaximalClique::maximal_clique_degen()
         init_R_X(u);
         // choose the v with max triangles
         int pivot_index = build_matrix(u);
-
         // bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
-        // int num = expand_ctz(get_nvec(0), get_nset(0), root_vector_size);
-        // int num = expand_avx2_compress(get_nvec(0), get_nset(0), root_vector_size);
-
-        int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_nset(0), root_vector_size);
-
-        int *next = get_nset(0);
+        // int num = expand_ctz(get_nvec(0), get_stack(0), root_vector_size);
+        // int num = expand_avx2_compress(get_nvec(0), get_stack(0), root_vector_size);
+        int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_stack(0), root_vector_size);
+        int *next = get_stack(0);
         for (int i = 0; i < num; i++)
         {
             int v_index = next[i];
@@ -275,10 +278,51 @@ int LoiMaximalClique::maximal_clique_degen()
     return mc_num;
 }
 
+long long LoiMaximalClique::maximal_clique_degen_onepunch()
+{
+    set_buffer_capacity(max_deg);
+    mc_num = 0, u_cnt = 0, p_set_idx = 0;
+    visited = new bool[v_num];
+    std::vector<int> dorder = degeneracy_order();
+    for (int u_id : dorder)
+    {
+        u_cnt++;
+        R[0] = u_id;
+        const QVertex &u = graph[u_id];
+        init_R_X(u);
+        // choose the v with max triangles
+        int pivot_index = build_matrix(u);
+
+        // bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
+        // int num = expand_ctz(get_nvec(0), get_stack(0), root_vector_size);
+        // int num = expand_avx2_compress(get_nvec(0), get_stack(0), root_vector_size);
+
+        int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_stack(0), root_vector_size);
+        stack_set_size[0] = num;
+        dfs_pivot_serious_onepunch();
+        int *next = get_stack(0);
+
+        // for (int i = num - 1; i >= 0; i--)
+        // {
+        //     cur_depth = 0;
+        //     int v_index = next[i];
+        //     // int v_index = i;
+        //     // dfs_pivot_normal_onepunch();
+        //     mark_as_one(get_xvec(0), v_index);
+        //     mark_as_zero(get_pvec(0), v_index);
+        // }
+        visited[u_id] = true;
+    }
+    delete[] visited;
+    free_buffer();
+    // printf("max_pool_sets_idx=%d\n", max_pool_sets_idx);
+    printf("maximum_clique_size=%d\n", maximum_clique_size);
+    return mc_num;
+}
+
 void LoiMaximalClique::dfs(int v_index, int depth)
 {
     // bookkeeping
-    index_vec[depth] = v_index;
     R[depth] = pool_edges[root_start + v_index];
     // compute the cliques formed with all visiting vertexes
     bitwise_and(get_bitmap(v_index), get_pvec(depth - 1), get_pvec(depth), aligned_root_vector_size);
@@ -300,8 +344,8 @@ void LoiMaximalClique::dfs(int v_index, int depth)
         }
         return;
     }
-    int num = expand_ctz(get_nvec(depth), get_nset(depth), root_vector_size);
-    int *next = get_nset(depth);
+    int num = expand_ctz(get_nvec(depth), get_stack(depth), root_vector_size);
+    int *next = get_stack(depth);
     for (int i = 0; i < num; i++)
     {
         dfs(next[i], depth + 1);
@@ -312,12 +356,11 @@ void LoiMaximalClique::dfs(int v_index, int depth)
 
 void LoiMaximalClique::dfs_pivot(int v_index, int depth)
 {
-    index_vec[depth] = v_index;
     R[depth] = pool_edges[root_start + v_index];
     // compute the cliques
     bitwise_and(get_bitmap(v_index), get_pvec(depth - 1), get_pvec(depth), aligned_root_vector_size);
     bitwise_and(get_bitmap(v_index), get_xvec(depth - 1), get_xvec(depth), aligned_root_vector_size);
-    if(all_zero(get_pvec(depth), root_vector_size))
+    if (all_zero(get_pvec(depth), root_vector_size))
     {
         // declare maximal clique is found
         if (all_zero(get_xvec(depth), root_vector_size))
@@ -337,15 +380,15 @@ void LoiMaximalClique::dfs_pivot(int v_index, int depth)
         return;
     }
     int num;
-    int *next = get_nset(depth);
+    int *next = get_stack(depth);
     // choose a pivot point
     // herustic 1, choose v with max degree, (assume graph is reindexed, small id high deg)
     // int pivot_index = find_first_index(get_pvec(depth), root_vector_size);
 
     // herustic 2, choose v with most triangles
     // int pivot_index = -1, max_cnt = 0;
-    // int pnum = expand_avx2_compress(get_pvec(depth), get_nset(depth), root_vector_size);
-    // int *pnext = get_nset(depth);
+    // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+    // int *pnext = get_stack(depth);
     // for (int i = 0; i < pnum; i++)
     // {
     //     int p_idx = pnext[i];
@@ -357,16 +400,17 @@ void LoiMaximalClique::dfs_pivot(int v_index, int depth)
     // }
 
     // herustic 3, choose v thath minimize P \ N(v)
-    if (pivot_inter_cnt[depth - 1] > 0) {
+    if (pivot_inter_cnt[depth - 1] > 0)
+    {
         int pivot_index = -1, max_intersect_cnt = 0;
-        int *pnext = get_nset(depth);
+        int *pnext = get_stack(depth);
         // not considering x
-        // int pnum = expand_avx2_compress(get_pvec(depth), get_nset(depth), root_vector_size);
+        // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
 
         // considering x
         // bitwise_or(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
         // bitwise_andn(get_nvec(depth), get_xvec(0), get_nvec(0), aligned_root_vector_size);
-        // int pnum = expand_avx2_compress(get_pvec(depth), get_nset(depth), root_vector_size);
+        // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
         int pnum = maskzor_expand_avx2_compress(get_xvec(0), get_pvec(depth), get_xvec(depth), simd_buffer, pnext, root_vector_size);
         for (int i = 0; i < pnum; i++)
         {
@@ -384,25 +428,253 @@ void LoiMaximalClique::dfs_pivot(int v_index, int depth)
             }
         }
         pivot_inter_cnt[depth] = max_intersect_cnt;
-        num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(depth), simd_buffer, get_nset(depth), root_vector_size);
-    } else {
+        num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(depth), simd_buffer, get_stack(depth), root_vector_size);
+    }
+    else
+    {
         num = expand_avx2_compress(get_pvec(depth), next, root_vector_size);
     }
 
     // decode method 1, using avx2, minimum memory footprint
     // decode method 2, using avx2
     // bitwise_andn(get_pvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
-    // int num = expand_avx2_compress(get_nvec(depth), get_nset(depth), root_vector_size);
+    // int num = expand_avx2_compress(get_nvec(depth), get_stack(depth), root_vector_size);
 
     // decode method 3, use ctz
     // bitwise_andn(get_pvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
-    // int num = expand_ctz(get_nvec(depth), get_nset(depth), root_vector_size);
+    // int num = expand_ctz(get_nvec(depth), get_stack(depth), root_vector_size);
 
     for (int i = 0; i < num; i++)
     {
         dfs_pivot(next[i], depth + 1);
         mark_as_zero(get_pvec(depth), next[i]);
         mark_as_one(get_xvec(depth), next[i]);
+    }
+}
+
+void LoiMaximalClique::dfs_pivot_normal_onepunch()
+{
+    int depth = ++cur_depth;
+    int remain_stack_size = stack_set_size[depth - 1]--;
+    if (remain_stack_size <= 0)
+    {
+        --cur_depth;
+        return;
+    }
+    int v_index = get_stack(depth - 1)[remain_stack_size - 1];
+    R[depth] = pool_edges[root_start + v_index];
+    // compute the cliques
+    bitwise_and(get_bitmap(v_index), get_pvec(depth - 1), get_pvec(depth), aligned_root_vector_size);
+    bitwise_and(get_bitmap(v_index), get_xvec(depth - 1), get_xvec(depth), aligned_root_vector_size);
+    if (all_zero(get_pvec(depth), root_vector_size))
+    {
+        // declare maximal clique is found
+        if (all_zero(get_xvec(depth), root_vector_size))
+        {
+            mc_num++;
+            if (pool_mc_idx + depth + 1 < PACK_NODE_POOL_SIZE)
+            {
+                // std::sort(R, R + depth);
+                memcpy(pool_mc + pool_mc_idx, R, (depth + 1) * sizeof(int));
+                pool_mc_idx += depth + 1;
+                pool_mc[pool_mc_idx++] = -1;
+            }
+            maximum_clique_size = std::max(maximum_clique_size, depth + 1);
+        }
+
+        // max_pool_sets_idx = std::max(max_pool_sets_idx, depth + 1);
+        --cur_depth;
+        return;
+    }
+    int num;
+    int *next = get_stack(depth);
+    // choose a pivot point
+    // herustic 1, choose v with max degree, (assume graph is reindexed, small id high deg)
+    // int pivot_index = find_first_index(get_pvec(depth), root_vector_size);
+
+    // herustic 2, choose v with most triangles
+    // int pivot_index = -1, max_cnt = 0;
+    // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+    // int *pnext = get_stack(depth);
+    // for (int i = 0; i < pnum; i++)
+    // {
+    //     int p_idx = pnext[i];
+    //     if (triangle_cnt[p_idx] > max_cnt)
+    //     {
+    //         pivot_index = p_idx;
+    //         max_cnt = triangle_cnt[p_idx];
+    //     }
+    // }
+
+    // herustic 3, choose v thath minimize P \ N(v)
+    if (pivot_inter_cnt[depth - 1] > 0)
+    {
+        int pivot_index = -1, max_intersect_cnt = 0;
+        int *pnext = get_stack(depth);
+        // not considering x
+        // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+
+        // considering x
+        // bitwise_or(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
+        // bitwise_andn(get_nvec(depth), get_xvec(0), get_nvec(0), aligned_root_vector_size);
+        // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+        int pnum = maskzor_expand_avx2_compress(get_xvec(0), get_pvec(depth), get_xvec(depth), simd_buffer, pnext, root_vector_size);
+        for (int i = 0; i < pnum; i++)
+        {
+            int p_idx = pnext[i];
+            // method 1 using avx2, minimum memory footprint
+            int p_cnt = bitwise_and_count(get_pvec(depth), get_bitmap(p_idx), root_vector_size);
+
+            // method 2 using avx2
+            // bitwise_andn(get_pvec(depth), get_bitmap(p_idx), get_nvec(depth), aligned_root_vector_size);
+            // int p_cnt = count_bitmap(get_nvec(depth), root_vector_size);
+            if (p_cnt >= max_intersect_cnt)
+            {
+                max_intersect_cnt = p_cnt;
+                pivot_index = p_idx;
+            }
+        }
+        pivot_inter_cnt[depth] = max_intersect_cnt;
+        num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(depth), simd_buffer, get_stack(depth), root_vector_size);
+    }
+    else
+    {
+        num = expand_avx2_compress(get_pvec(depth), next, root_vector_size);
+    }
+
+    // decode method 1, using avx2, minimum memory footprint
+    // decode method 2, using avx2
+    // bitwise_andn(get_pvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
+    // int num = expand_avx2_compress(get_nvec(depth), get_stack(depth), root_vector_size);
+
+    // decode method 3, use ctz
+    // bitwise_andn(get_pvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
+    // int num = expand_ctz(get_nvec(depth), get_stack(depth), root_vector_size);
+    stack_set_size[depth] = num;
+    for (int i = num - 1; i >= 0; i--)
+    {
+        dfs_pivot_normal_onepunch();
+        mark_as_zero(get_pvec(depth), next[i]);
+        mark_as_one(get_xvec(depth), next[i]);
+    }
+    --cur_depth;
+}
+void LoiMaximalClique::dfs_pivot_serious_onepunch()
+{
+    bool need_to_mask_last_index = false;
+    cur_depth = 0;
+    while (cur_depth >= 0)
+    {
+        int stack_idx = stack_set_size[cur_depth] - 1;
+        if (stack_idx < 0)
+        {
+            --cur_depth;
+            continue;
+        }
+        if (need_to_mask_last_index)
+        {
+            // current stack has been fully explored
+            mark_as_zero(get_pvec(cur_depth), index_vec[cur_depth + 1]);
+            mark_as_one(get_xvec(cur_depth), index_vec[cur_depth + 1]);
+        }
+        // visit a vertex in the stack
+        int v_index = get_stack(cur_depth)[stack_idx];
+        stack_set_size[cur_depth]--;
+
+        // goes deeper
+        ++cur_depth;
+        index_vec[cur_depth] = v_index;
+        R[cur_depth] = pool_edges[root_start + v_index];
+        // compute the cliques
+        bitwise_and(get_bitmap(v_index), get_pvec(cur_depth - 1), get_pvec(cur_depth), aligned_root_vector_size);
+        bitwise_and(get_bitmap(v_index), get_xvec(cur_depth - 1), get_xvec(cur_depth), aligned_root_vector_size);
+        if (all_zero(get_pvec(cur_depth), root_vector_size))
+        {
+            // declare maximal clique is found
+            if (all_zero(get_xvec(cur_depth), root_vector_size))
+            {
+                mc_num++;
+                if (pool_mc_idx + cur_depth + 1 < PACK_NODE_POOL_SIZE)
+                {
+                    // std::sort(R, R + cur_depth);
+                    memcpy(pool_mc + pool_mc_idx, R, (cur_depth + 1) * sizeof(int));
+                    pool_mc_idx += cur_depth + 1;
+                    pool_mc[pool_mc_idx++] = -1;
+                }
+                maximum_clique_size = std::max(maximum_clique_size, cur_depth + 1);
+            }
+            // done with the current vertex, mark as visited
+            cur_depth--;
+            need_to_mask_last_index = true;
+            continue;
+        }
+        int num;
+        int *next = get_stack(cur_depth);
+        // choose a pivot point
+        // herustic 1, choose v with max degree, (assume graph is reindexed, small id high deg)
+        // int pivot_index = find_first_index(get_pvec(depth), root_vector_size);
+
+        // herustic 2, choose v with most triangles
+        // int pivot_index = -1, max_cnt = 0;
+        // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+        // int *pnext = get_stack(depth);
+        // for (int i = 0; i < pnum; i++)
+        // {
+        //     int p_idx = pnext[i];
+        //     if (triangle_cnt[p_idx] > max_cnt)
+        //     {
+        //         pivot_index = p_idx;
+        //         max_cnt = triangle_cnt[p_idx];
+        //     }
+        // }
+
+        // herustic 3, choose v thath minimize P \ N(v)
+        if (pivot_inter_cnt[cur_depth - 1] > 0)
+        {
+            int pivot_index = -1, max_intersect_cnt = 0;
+            int *pnext = get_stack(cur_depth);
+            // not considering x
+            // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+
+            // considering x
+            // bitwise_or(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
+            // bitwise_andn(get_nvec(depth), get_xvec(0), get_nvec(0), aligned_root_vector_size);
+            // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+            int pnum = maskzor_expand_avx2_compress(get_xvec(0), get_pvec(cur_depth), get_xvec(cur_depth), simd_buffer, pnext, root_vector_size);
+            for (int i = 0; i < pnum; i++)
+            {
+                int p_idx = pnext[i];
+                // method 1 using avx2, minimum memory footprint
+                int p_cnt = bitwise_and_count(get_pvec(cur_depth), get_bitmap(p_idx), root_vector_size);
+
+                // method 2 using avx2
+                // bitwise_andn(get_pvec(depth), get_bitmap(p_idx), get_nvec(depth), aligned_root_vector_size);
+                // int p_cnt = count_bitmap(get_nvec(depth), root_vector_size);
+                if (p_cnt >= max_intersect_cnt)
+                {
+                    max_intersect_cnt = p_cnt;
+                    pivot_index = p_idx;
+                }
+            }
+            pivot_inter_cnt[cur_depth] = max_intersect_cnt;
+            num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(cur_depth), simd_buffer, pnext, root_vector_size);
+            stack_set_size[cur_depth] = num;
+        }
+        else
+        {
+            num = expand_avx2_compress(get_pvec(cur_depth), next, root_vector_size);
+            stack_set_size[cur_depth] = num;
+        }
+        // decode method 1, using avx2, minimum memory footprint
+        // decode method 2, using avx2
+        // bitwise_andn(get_pvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
+        // int num = expand_avx2_compress(get_nvec(depth), get_stack(depth), root_vector_size);
+
+        // decode method 3, use ctz
+        // bitwise_andn(get_pvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
+        // int num = expand_ctz(get_nvec(depth), get_stack(depth), root_vector_size);
+        cur_depth++;
+        need_to_mask_last_index = false;
     }
 }
 

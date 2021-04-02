@@ -15,10 +15,11 @@ public:
 
     void build(const EdgeVector &_e_v);
     std::vector<int> degeneracy_order();
-    int maximal_clique_bk();
-    int maximal_clique_pivot();
-    int maximal_clique_degen();
-    int maximal_clique_bk2();
+    long long maximal_clique_bk();
+    long long maximal_clique_pivot();
+    long long maximal_clique_degen();
+    long long maximal_clique_bk2();
+    long long maximal_clique_degen_onepunch();
 
     void save_answers(const char *file_path);
     void start_report();
@@ -45,10 +46,10 @@ private:
     Bitmap *matrix;
     Bitmap *P_vec_pool; // cache P_vec
     Bitmap *X_vec_pool; // X_vec
-    Bitmap *R_vec;  // R
-    Bitmap *next_vec_pool;
+    Bitmap *stack_pool;
     Bitmap *simd_buffer;
-    int *next_set_pool;
+    int *stack_set_pool;
+    int *stack_set_size;
     int *pivot_inter_cnt;
     // Bitmap *X_vec; // X
     int *triangle_cnt;
@@ -57,17 +58,21 @@ private:
     int *R;
     int *X;
     bool *visited;
-    /**
-     * @return pivot index
-     * */
-    int build_matrix(const QVertex &u);
+
     /**
      * @param deg degree of root vertex
      * */
     void set_buffer_capacity(size_t deg);
     void free_buffer();
+    /**
+     * @return pivot index
+     * */
+    int build_matrix(const QVertex &u);
     void dfs(int v_index, int depth);
     void dfs_pivot(int v_index, int depth);
+    void dfs_pivot_normal_onepunch(); // remove variable passing
+    void dfs_pivot_serious_onepunch(); // remove recursive calls
+
     /** 
      * @param u the root vertex
      * @return number of triangles
@@ -99,7 +104,7 @@ private:
      * */
     Bitmap *get_nvec(int depth)
     {
-        return &next_vec_pool[depth * aligned_root_vector_size];
+        return &stack_pool[depth * aligned_root_vector_size];
     };
     
     /**
@@ -110,10 +115,9 @@ private:
     {
         return &index_pool[depth * root_deg];
     };
-    int* get_nset(int depth){
-        return &next_set_pool[depth * root_deg];
+    int* get_stack(int depth){
+        return &stack_set_pool[depth * root_deg];
     }
-
     // debug
     std::string matrix_to_string();
     std::string to_string(int *vec, int size);
