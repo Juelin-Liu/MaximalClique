@@ -126,8 +126,6 @@ void mark_as_zero(Bitmap *bitmap, int index);
  * @param vector_size number byte
  * */
  bool all_zero(Bitmap *bitmap, int vector_size);
-bool is_zero(Bitmap *bitmap, int pos);
-bool is_one(Bitmap *bitmap, int pos);
 
 /**
  * @param bitmap the coming bitstream

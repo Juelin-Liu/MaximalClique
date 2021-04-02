@@ -631,14 +631,4 @@ inline void mark_as_zero(Bitmap *bitmap, int index)
    bitmap[index / 8] ^= 1 << (index % 8);
 };
 
-inline bool is_zero(Bitmap *bitmap, int pos)
-{
-   uint8_t bits = bitmap[pos / 8];
-   int offset = pos % 8;
-   return (bits & (1 << offset) == 0);
-};
-inline bool is_one(Bitmap *bitmap, int pos)
-{
-   return !is_zero(bitmap, pos);
-};
 #endif
