@@ -98,7 +98,7 @@ algorithm BronKerbosch3(G) is
 ```
 
 ### Pivot Vertex - Choose All Wisely
-Glad you have read to this point because. Here is what this project really about.
+Glad you have read to this point because here is what this project really about.
 
 The degeneracy ordering mentioned above only handles the first pivoting vertex. But what about the rest?
 
@@ -121,3 +121,5 @@ algorithm BronKerboschGreedy(R, P, X) is
         P := P \ {v}
         X := X ⋃ {v}
 ```
+
+However, this process it self can be expensive, until now. 
