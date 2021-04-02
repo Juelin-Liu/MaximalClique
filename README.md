@@ -9,14 +9,13 @@ Faster Maximal Clique Algorithm
 
 To switch between method, change the class type for the variable `mc` in `mc.cpp`.
 
-Special thanks to Shuo Han, Lei Zou, and Jeffrey Xu Yu, who provided the [source code](https://github.com/pkumod/GraphSetIntersection) the current state-of-the-art implementation and many useful APIs.
+Special thanks to Shuo Han, Lei Zou, and Jeffrey Xu Yu, who provided the [source code](https://github.com/pkumod/GraphSetIntersection) of the current state-of-the-art implementation.
 
 - `data` contains the scripts for downloading data and reordering data.
 - `paper` contains the research paper that builds the foundation of this project.
 
 ### Dependencies
-The project is designed to be as independent as possible. However, it still require hardware support. 
-Make sure your CPU support AVX2 instructions to achieve the best performance.
+Make sure your CPU support AVX2 instructions to achieve the best performance. (Intel is preferred)
 
 ### How to Run
 In `src` directory run `make`. It will generate two binaries: `mc`, which is for maximal clique finding, and `reorder` which is for reordering the graph. 
@@ -36,8 +35,7 @@ The graph included is `reactome`:
 Note, the graph is reindexed so the vertex ids start from 0 and are contiguous. 
 
 ### Introduction
-
-This project aims to find faster algorithm to find maximal cliques in an undirected graph. Listing all maximal cliques is a NP hard problem. [Moon & Moser](https://link.springer.com/article/10.1007%2FBF02760024) have shown that every n-vertex graph has at most 3^(n/3) maximal cliques. 
+This project aims to find faster algorithm for finding maximal cliques in an undirected graph. Listing all maximal cliques is a NP hard problem. [Moon & Moser](https://link.springer.com/article/10.1007%2FBF02760024) have shown that every n-vertex graph has at most 3^(n/3) maximal cliques. 
 
 They can be listed by the [Bron-Kerbosch algorithm](https://en.wikipedia.org/wiki/Bron–Kerbosch_algorithm). A recursive backtracking algorithm that is worst case optimal. 
 
@@ -70,7 +68,6 @@ When P is empty, the current DFS path has no more vertex to explore so it can re
 But before that, it needs to check if R contains a maximal clique. The way to do that is check if X is empty. If X is not empty, this maximal clique must has been explored in the previous search. (Remember or X is builded, only the vertexes that have been fully explored are in X. Also they are connected to all vertex in R.)
 
 ### Pivoting Vertex
-
 The pitfall of this algorithm is it needs to open a recursive call on every cliques. But many are not maximal cliques. A remedy is to choose a pivoting vertex.
 > To save time and allow the algorithm to backtrack more quickly in branches of the search that contain no maximal cliques, Bron and Kerbosch introduced a variant of the algorithm involving a "pivot vertex" u, chosen from P (or more generally, as later investigators realized, from P ⋃ X). Any maximal clique must include either u or one of its non-neighbors, for otherwise the clique could be augmented by adding u to it. Therefore, only u and its non-neighbors need to be tested as the choices for the vertex v that is added to R in each recursive call to the algorithm. In pseudocode:
 
@@ -87,8 +84,7 @@ algorithm BronKerbosch2(R, P, X) is
 
 If the pivot is chosen to minimize the number of recursive calls made by the algorithm, the savings in running time compared to the non-pivoting version of the algorithm can be significant.
 
-### Pivot Vertex - Choose The First One Wisely 
-
+### Pivot Vertex - Choose The First Wisely 
 An alternative method for improving the basic form of the Bron–Kerbosch algorithm involves forgoing pivoting at the outermost level of recursion, and instead choosing the ordering of the recursive calls carefully in order to minimize the sizes of the sets P of candidate vertices within each recursive call.
 
 The degeneracy of a graph G is the smallest number d such that every subgraph of G has a vertex with degree d or less. Every graph has a degeneracy ordering, an ordering of the vertices such that each vertex has d or fewer neighbors that come later in the ordering; a degeneracy ordering may be found in linear time by repeatedly selecting the vertex of minimum degree among the remaining vertices. If the order of the vertices v that the Bron–Kerbosch algorithm loops through is a degeneracy ordering, then the set P of candidate vertices in each call (the neighbors of v that are later in the ordering) will be guaranteed to have size at most d. The set X of excluded vertices will consist of all earlier neighbors of v, and may be much larger than d. In recursive calls to the algorithm below the topmost level of the recursion, the pivoting version can still be used.
@@ -105,7 +101,7 @@ algorithm BronKerbosch3(G) is
         X := X ⋃ {v}
 ```
 
-### Pivot Vertex - Choose All Wisely
+### Pivot Vertex - Choose All Fastly & Wisely
 Glad you have read to this point because here is what this project really about.
 
 The degeneracy ordering mentioned above only handles the first pivoting vertex. But what about the rest?
