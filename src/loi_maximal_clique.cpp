@@ -130,6 +130,7 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
 {
     int triangles = 0;
     int p_index = 0, p_triangle_size = 0, max_inter_cnt = 0;
+    root_triangle_cnt = 0;
     root_start = a.start;
     root_offset = a.offset;
     root_deg = a.deg;
@@ -147,14 +148,14 @@ int LoiMaximalClique::build_matrix(const QVertex &a)
             const QVertex &b = graph[b_id];
             int t_num = mark_intersect_simd8x(pool_edges + a.start, a.deg,
                                               pool_edges + b.start, b.deg, get_bitmap(b_idx));
-
-            // herustic 2 choose v with maximum triangle
-            // triangle_cnt[b_idx] = t_num;
-            // if (t_num > p_triangle_size)
-            // {
-            //     p_triangle_size = t_num;
-            //     p_index = b_idx;
-            // }
+            //herustic 2 choose v with maximum triangle
+            triangle_cnt[b_idx] = t_num;
+            if (t_num > p_triangle_size)
+            {
+                p_triangle_size = t_num;
+                p_index = b_idx;
+            }
+            root_triangle_cnt += t_num;
 
             // herustic 3 choose v that minimize P \ N(v)
             int b_intern_cnt = bitwise_and_count(get_bitmap(b_idx), get_pvec(0), root_vector_size);
@@ -296,8 +297,11 @@ long long LoiMaximalClique::maximal_clique_degen_onepunch()
         // bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
         // int num = expand_ctz(get_nvec(0), get_stack(0), root_vector_size);
         // int num = expand_avx2_compress(get_nvec(0), get_stack(0), root_vector_size);
-
+        #if __SIMD_LEVEL__ == 2
         int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_stack(0), root_vector_size);
+        #elif __SIMD_LEVEL__ == 0
+        int num = maskz_expand_ctz(get_bitmap(pivot_index), get_pvec(0), get_stack(0), root_vector_size);
+        #endif
         stack_set_size[0] = num;
         dfs_pivot_serious_onepunch();
         int *next = get_stack(0);
@@ -586,8 +590,9 @@ void LoiMaximalClique::dfs_pivot_serious_onepunch()
         index_vec[cur_depth] = v_index;
         R[cur_depth] = pool_edges[root_start + v_index];
         // compute the cliques
-        bitwise_and(get_bitmap(v_index), get_pvec(cur_depth - 1), get_pvec(cur_depth), aligned_root_vector_size);
-        bitwise_and(get_bitmap(v_index), get_xvec(cur_depth - 1), get_xvec(cur_depth), aligned_root_vector_size);
+        // bitwise_and(get_bitmap(v_index), get_pvec(cur_depth - 1), get_pvec(cur_depth), aligned_root_vector_size);
+        // bitwise_and(get_bitmap(v_index), get_xvec(cur_depth - 1), get_xvec(cur_depth), aligned_root_vector_size);
+        double_bitwise_and(get_bitmap(v_index), get_pvec(cur_depth - 1), get_xvec(cur_depth - 1), get_pvec(cur_depth),get_xvec(cur_depth), aligned_root_vector_size);
         if (all_zero(get_pvec(cur_depth), root_vector_size))
         {
             // declare maximal clique is found
@@ -612,7 +617,9 @@ void LoiMaximalClique::dfs_pivot_serious_onepunch()
         int *next = get_stack(cur_depth);
         // choose a pivot point
         // herustic 1, choose v with max degree, (assume graph is reindexed, small id high deg)
-        // int pivot_index = find_first_index(get_pvec(depth), root_vector_size);
+        // int pivot_index = maskzor_find_first_index(get_xvec(0), get_pvec(cur_depth), get_xvec(cur_depth), root_vector_size);
+        // assert(pivot_index != -1);
+        // num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(cur_depth), simd_buffer, get_stack(cur_depth), root_vector_size);
 
         // herustic 2, choose v with most triangles
         // int pivot_index = -1, max_cnt = 0;
@@ -633,14 +640,18 @@ void LoiMaximalClique::dfs_pivot_serious_onepunch()
         {
             int pivot_index = -1, max_intersect_cnt = 0;
             int *pnext = get_stack(cur_depth);
-            // not considering x
-            // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+// not considering x
+// int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
 
-            // considering x
-            // bitwise_or(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
-            // bitwise_andn(get_nvec(depth), get_xvec(0), get_nvec(0), aligned_root_vector_size);
-            // int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+// considering x
+// bitwise_or(get_pvec(depth), get_xvec(depth), get_nvec(depth), aligned_root_vector_size);
+// bitwise_andn(get_nvec(depth), get_xvec(0), get_nvec(0), aligned_root_vector_size);
+// int pnum = expand_avx2_compress(get_pvec(depth), get_stack(depth), root_vector_size);
+#if __SIMD_LEVEL__ == 2
             int pnum = maskzor_expand_avx2_compress(get_xvec(0), get_pvec(cur_depth), get_xvec(cur_depth), simd_buffer, pnext, root_vector_size);
+#elif __SIMD_LEVEL__ == 0
+            int pnum = maskzor_expand_ctz(get_xvec(0), get_pvec(cur_depth), get_xvec(cur_depth), pnext, root_vector_size);
+#endif
             for (int i = 0; i < pnum; i++)
             {
                 int p_idx = pnext[i];
@@ -657,13 +668,21 @@ void LoiMaximalClique::dfs_pivot_serious_onepunch()
                 }
             }
             pivot_inter_cnt[cur_depth] = max_intersect_cnt;
+#if __SIMD_LEVEL__ == 2
             num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(cur_depth), simd_buffer, pnext, root_vector_size);
-            stack_set_size[cur_depth] = num;
+#elif __SIMD_LEVEL__ == 0
+            num = maskz_expand_ctz(get_bitmap(pivot_index), get_pvec(cur_depth), pnext, root_vector_size);
+#endif
         }
         else
         {
+#if __SIMD_LEVEL__ == 2
+
             num = expand_avx2_compress(get_pvec(cur_depth), next, root_vector_size);
-            stack_set_size[cur_depth] = num;
+#elif __SIMD_LEVEL__ == 0
+            num = expand_ctz(get_pvec(cur_depth), next, root_vector_size);
+
+#endif
         }
         // decode method 1, using avx2, minimum memory footprint
         // decode method 2, using avx2
@@ -673,6 +692,7 @@ void LoiMaximalClique::dfs_pivot_serious_onepunch()
         // decode method 3, use ctz
         // bitwise_andn(get_pvec(depth), get_bitmap(pivot_index), get_nvec(depth), aligned_root_vector_size);
         // int num = expand_ctz(get_nvec(depth), get_stack(depth), root_vector_size);
+        stack_set_size[cur_depth] = num;
         cur_depth++;
         need_to_mask_last_index = false;
     }
@@ -771,16 +791,17 @@ void LoiMaximalClique::start_report()
 
 void LoiMaximalClique::report_mc_num()
 {
-    int counter = 0;
+    double counter = 0.0;
+    std::cout << "executed | mc number | vertex num | current root degree | current root triangles" << std::endl;
     for (;;)
     {
         std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
-        counter++;
+        counter += REPORT_ELAPSE;
         if (counter > MAX_REPORT_TIME)
         {
             break;
         }
-        std::cout << "executed: " << counter << " s\t\tmc number: " << mc_num << "\t\tvertex num: " << u_cnt << std::endl;
+        std::cout << counter << " s | " << mc_num << " | " << u_cnt << " | " << root_deg << " | " << root_triangle_cnt << std::endl;
     }
 }
 

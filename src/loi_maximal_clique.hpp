@@ -4,6 +4,11 @@
 #include "util.hpp"
 // #include "rtm.hpp"
 #include "rtm_inline.h"
+#if __SIMD_LEVEL__ == 2
+typedef __m256i AlignType;
+#elif __SIMD_LEVEL__ == 0
+typedef uint64_t AlignType;
+#endif
 class LoiMaximalClique
 {
 public:
@@ -53,6 +58,7 @@ private:
     int *pivot_inter_cnt;
     // Bitmap *X_vec; // X
     int *triangle_cnt;
+    int root_triangle_cnt;
     int *index_vec;
     int *index_pool;       
     int *R;

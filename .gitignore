@@ -33,6 +33,7 @@
 src/mc 
 src/reorder
 output/*
+logs/*
 test/*
 mc_result/*
 data/*

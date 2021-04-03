@@ -20,9 +20,10 @@
 #define MAX_REPORT_TIME 100000
 #define SIMD_STATE 4 // 0:none, 2:scalar2x, 4:simd4x
 #define SIMD_MODE 1 // 0:naive 1: filter
+#define __SIMD_LEVEL__ 2
+
 typedef int PackBase;
 typedef uint8_t Bitmap;
-typedef __m256i AlignType;
 #ifdef SI64
 typedef long long PackState;
 #else
@@ -88,4 +89,16 @@ std::vector<int> load_vertex_order(const std::string path);
 void save_newid(const std::string path, std::vector<int> org2newid);
 void save_newid(const std::string path, std::vector<int> org2newid, std::vector<int> ord2org);
 bool edge_idpair_cmp(const Edge& a, const Edge& b);
+
+/**
+ * @param deg number of neighbors
+ * @return size of the bitmap vector (bytes)
+ * */
+template <typename T>
+inline int get_vector_size(int deg)
+{
+   const int bitwidth = sizeof(T) * 8;
+   return (deg % bitwidth) ? (deg / bitwidth + 1) * sizeof(T) : (deg / bitwidth) * sizeof(T);
+};
+
 #endif

@@ -1,17 +1,6 @@
 #ifndef _RTM_HPP_
 #define _RTM_HPP_
 #include "util.hpp"
-
-/**
- * @param deg number of neighbors
- * @return size of the bitmap vector (bytes)
- * */
-template <typename T>
-int get_vector_size(int deg)
-{
-   const int bitwidth = sizeof(T) * 8;
-   return (deg % bitwidth) ? (deg / bitwidth + 1) * sizeof(T) : (deg / bitwidth) * sizeof(T);
-};
 /**
  * @param bitmap triangle intersection vector to be expanded
  * @param out output index place
@@ -47,6 +36,16 @@ int expand_avx2(Bitmap *bitmap, int *out, int vector_size);
  * @param vector_size of length of the bitmap
  * */
  int maskzor_expand_avx2_compress(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *buffer, int *out, int vector_size);
+
+/**
+ * @param bitmap_a triangle intersection vector to be expanded
+ * @param bitmap_b triangle intersection vector to be expanded
+ * @param bitmask indexes to be excluded
+ * @param out output index place
+ * @param vector_size of length of the bitmap
+ * */
+ int maskzor_expand_ctz(Bitmap *bitmask, Bitmap *bitmap_a, Bitmap *bitmap_b, int *out, int vector_size);
+ int maskz_expand_ctz(Bitmap *bitmask, Bitmap *bitmap_a, int *out, int vector_size);
 
 /**
  * @param bitmap triangle intersection vector to be expanded
@@ -162,5 +161,8 @@ int count_bitmap(Bitmap *bitmap, int start, int end);
 
 int find_first_index(Bitmap *bitmap, int vector_size);
 int find_last_index(Bitmap *bitmap, int vector_size);
+
+int maskzor_find_first_index(Bitmap * bitmask, Bitmap *bitmap_a, Bitmap * bitmap_b, int vector_size);
+int maskzor_find_first_index(Bitmap * bitmask, Bitmap *bitmap_a, Bitmap * bitmap_b, Bitmap *simd_buffer, int vector_size);
 
 #endif

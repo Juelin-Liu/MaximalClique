@@ -1,5 +1,5 @@
 CXX = g++ -std=c++11
-CXXFLAGS = -O3 -Wall -Wno-unused-result -mavx2 -pthread -g #-lmetis
+CXXFLAGS = -O3 -Wall -Wno-unused-result -mavx2 -pthread #-g #-lmetis
 
 SOURCES = $(shell find . | grep -e ".hpp")
 OBJECTS = $(SOURCES:%.hpp=%.o)
