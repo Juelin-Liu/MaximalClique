@@ -31,10 +31,10 @@ private:
     PackState *sets_state = NULL;
 
     int *pool_mc = NULL, pool_mc_idx = 0; long long mc_num = 0;
-   
+    
     int max_pool_sets_idx = 0, maximum_clique_size = 0;
     int intersect_call_time = 0, big_intersect_call_time = 0;
-
+    long long total_mc_size; 
     void Tomita(std::vector<int>& R, UVertex P, UVertex X);
 
 

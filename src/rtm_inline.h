@@ -483,7 +483,7 @@ inline int bitwise_and_count(Bitmap *bitmap_a, Bitmap *bitmap_b, Bitmap *out, in
    for (int i = 0; i < vector_size; i += 32)
    {
       __m256i andmask = _mm256_and_si256(*(__m256i *)&bitmap_b[i], *(__m256i *)&bitmap_a[i]);
-      _mm256_store_si256((__m256i *)out, andmask);
+      _mm256_store_si256((__m256i *)(out + i), andmask);
       cnt += __builtin_popcountll(_mm256_extract_epi64(andmask, 0)) + __builtin_popcountll(_mm256_extract_epi64(andmask, 1)) + __builtin_popcountll(_mm256_extract_epi64(andmask, 2)) + __builtin_popcountll(_mm256_extract_epi64(andmask, 3));
    }
    return cnt;

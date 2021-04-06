@@ -154,7 +154,7 @@ void BPMaximalClique::Tomita(std::vector<int> &R, UVertex P, UVertex X)
                 pool_mc_idx += R.size();
                 pool_mc[pool_mc_idx++] = -1; // split different maximal cliques by -1.
             }
-
+            total_mc_size += R.size();
             mc_num++;
             max_pool_sets_idx = std::max(max_pool_sets_idx, X.start + X.deg);
             maximum_clique_size = std::max(maximum_clique_size, (int)R.size());
@@ -382,15 +382,16 @@ void BPMaximalClique::start_report()
 
 void BPMaximalClique::report_mc_num()
 {
-    int counter = 0;
+    double counter = 0.0;
+    std::cout << "executed | mc number | vertex num | total mc size | mining rate (MB/s)" << std::endl;
     for (;;)
     {
         std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
-        counter++;
+        counter += REPORT_ELAPSE;
         if (counter > MAX_REPORT_TIME)
         {
             break;
         }
-        std::cout << "executed: "<< counter << " s\t\tmc number: " << mc_num << "\t\tvertex num: " << u_cnt << std::endl;
+        std::cout << counter << " s | " << mc_num << " | " << u_cnt << " | "  << total_mc_size << " | " << total_mc_size * 4 / 1000 / 1000 / counter << std::endl;
     }
 }

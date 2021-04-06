@@ -23,9 +23,9 @@ public:
     long long maximal_clique_bk();
     long long maximal_clique_pivot();
     long long maximal_clique_degen();
-    long long maximal_clique_bk2();
+    // long long maximal_clique_bk2();
     long long maximal_clique_degen_onepunch();
-
+    unsigned long long total_mc_size = 0;
     void save_answers(const char *file_path);
     void start_report();
     void report_mc_num();
@@ -53,6 +53,7 @@ private:
     Bitmap *X_vec_pool; // X_vec
     Bitmap *stack_pool;
     Bitmap *simd_buffer;
+    Bitmap* X_init;
     int *stack_set_pool;
     int *stack_set_size;
     int *pivot_inter_cnt;
@@ -74,10 +75,13 @@ private:
      * @return pivot index
      * */
     int build_matrix(const QVertex &u);
-    void dfs(int v_index, int depth);
-    void dfs_pivot(int v_index, int depth);
-    void dfs_pivot_normal_onepunch(); // remove variable passing
+    void build_matrix(int u_id);
+    // void dfs(int v_index, int depth);
+    // void dfs_pivot(int v_index, int depth);
+    // void dfs_pivot_normal_onepunch(); // remove variable passing
     void dfs_pivot_serious_onepunch(); // remove recursive calls
+    void BronKerbosch( int depth, int mem_idx);
+    void Tomita(int depth, int mem_idx);
 
     /** 
      * @param u the root vertex

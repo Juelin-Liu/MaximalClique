@@ -36,7 +36,7 @@ private:
     int *temp_set = NULL;
     int max_pool_sets_idx = 0, maximum_clique_size = 0;
     int intersect_call_time = 0, big_intersect_call_time = 0;
-
+    long long total_mc_size;
     void BronKerbosch(std::vector<int>& R, UVertex P, UVertex X, int mem_idx);
     void Tomita(std::vector<int>& R, UVertex P, UVertex X);
 };

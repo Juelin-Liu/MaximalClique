@@ -16,7 +16,7 @@ struct timeval time_end;
 string graph_file_path = "../data/reactome";
 string output_file_path = "../output/reactome_mc";
 // BPMaximalClique mc;
-//OrgMaximalClique mc;
+// OrgMaximalClique mc;
 LoiMaximalClique mc;
 
 int main(int argc, char* argv[])
