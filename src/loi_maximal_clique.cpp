@@ -254,7 +254,7 @@ long long LoiMaximalClique::maximal_clique_pivot()
 
 long long LoiMaximalClique::maximal_clique_degen()
 {
-    return maximal_clique_degen_onepunch();
+    // return maximal_clique_degen_onepunch();
     set_buffer_capacity(max_deg);
     index_vec[0] = -1;
     mc_num = 0, u_cnt = 0, total_mc_size = 0;
@@ -994,7 +994,9 @@ void LoiMaximalClique::start_report()
 void LoiMaximalClique::report_mc_num()
 {
     double counter = 0.0;
-    std::cout << "executed | mc number | vertex num | current root degree | current root triangles | total mc size | mining rate (MB/s)" << std::endl;
+    long long last_mc_size = 0;
+    long long last_mc_cnt = 0;
+    std::cout << "executed | mc number | vertex num | total mc size | mc rate (K/s) | data rate (MB/s)" << std::endl;
     for (;;)
     {
         std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
@@ -1003,15 +1005,33 @@ void LoiMaximalClique::report_mc_num()
         {
             break;
         }
-        std::cout << counter << " s | " << mc_num << " | " << u_cnt << " | " << root_deg << " | " << root_triangle_cnt << " | " << total_mc_size << " | " << total_mc_size * 4 / 1000 / 1000 / counter << std::endl;
-
-        // std::string ssize = to_string(stack_set_size, cur_depth);
-        // std::string psize = to_string(pivot_inter_cnt, cur_depth);
-        // std::cout << "stack sizes: \n"
-        //           << ssize << std::endl;
-        // std::cout << "pivot intersections: \n"
-        //           << psize << std::endl;
+        long long current_mc_size = total_mc_size;
+        long long current_mc_cnt = mc_num;
+        std::cout << counter << " s | " << current_mc_cnt << " | " << u_cnt << " | " << current_mc_size << " | " << (current_mc_cnt - last_mc_cnt) / 1000 << " | " << (current_mc_size - last_mc_size) * 4 / 1000000 / REPORT_ELAPSE << std::endl;
+        last_mc_size = current_mc_size;
+        last_mc_cnt = current_mc_cnt;
     }
+    // std::cout << "executed | mc number | vertex num | current root degree | current root triangles | total mc size | mining speed (mc/s) | data rate (MB/s)" << std::endl;
+    // for (;;)
+    // {
+    //     std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
+    //     counter += REPORT_ELAPSE;
+    //     if (counter > MAX_REPORT_TIME)
+    //     {
+    //         break;
+    //     }
+    //     long long current_mc_size = total_mc_size;
+    //     long long current_mc_cnt = mc_num;
+    //     std::cout << counter << " s | " << current_mc_cnt << " | " << u_cnt << " | " << root_deg << " | " << root_triangle_cnt << " | " << current_mc_size << " | " << current_mc_cnt - last_mc_cnt << " | " << (current_mc_size - last_mc_size) * 4 / 1000 / 1000 / REPORT_ELAPSE << std::endl;
+    //     last_mc_size = current_mc_size;
+    //     last_mc_cnt = current_mc_cnt;
+    //     // std::string ssize = to_string(stack_set_size, cur_depth);
+    //     // std::string psize = to_string(pivot_inter_cnt, cur_depth);
+    //     // std::cout << "stack sizes: \n"
+    //     //           << ssize << std::endl;
+    //     // std::cout << "pivot intersections: \n"
+    //     //           << psize << std::endl;
+    // }
 }
 
 std::string LoiMaximalClique::matrix_to_string()

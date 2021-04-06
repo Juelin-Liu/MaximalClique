@@ -446,7 +446,9 @@ void OrgMaximalClique::start_report()
 void OrgMaximalClique::report_mc_num()
 {
     double counter = 0.0;
-    std::cout << "executed | mc number | vertex num | total mc size | mining rate (MB/s)" << std::endl;
+    long long last_mc_size = 0;
+    long long last_mc_cnt = 0;
+    std::cout << "executed | mc number | vertex num | total mc size | mc rate (K/s) | data rate (MB/s)" << std::endl;
     for (;;)
     {
         std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
@@ -455,6 +457,10 @@ void OrgMaximalClique::report_mc_num()
         {
             break;
         }
-        std::cout << counter << " s | " << mc_num << " | " << u_cnt << " | " << total_mc_size << " | " << total_mc_size * 4 / 1000 / 1000 / counter << std::endl;
+        long long current_mc_size = total_mc_size;
+        long long current_mc_cnt = mc_num;
+        std::cout << counter << " s | " << current_mc_cnt << " | " << u_cnt << " | " << current_mc_size << " | " << (current_mc_cnt - last_mc_cnt) / 1000 << " | " << (current_mc_size - last_mc_size) * 4 / 1000000 / REPORT_ELAPSE << std::endl;
+        last_mc_size = current_mc_size;
+        last_mc_cnt = current_mc_cnt;
     }
 }
