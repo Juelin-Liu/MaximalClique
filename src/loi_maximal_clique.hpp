@@ -2,8 +2,8 @@
 #define _LOI_MAXIMAL_CLIQUE_H
 
 #include "util.hpp"
-// #include "rtm.hpp"
-#include "rtm_inline.h"
+#include "rtm.hpp"
+// #include "rtm_inline.h"
 #if __SIMD_LEVEL__ == 2
 typedef __m256i AlignType;
 #elif __SIMD_LEVEL__ == 0
@@ -26,6 +26,7 @@ public:
     // long long maximal_clique_bk2();
     long long maximal_clique_degen_onepunch();
     unsigned long long total_mc_size = 0;
+    unsigned long long total_compressed_mc_size = 0;
     void save_answers(const char *file_path);
     void start_report();
     void report_mc_num();

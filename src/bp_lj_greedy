@@ -1,0 +1,6 @@
+load_graph done.
+v_num=3997962 e_num=69362378 max_deg=14815
+build_time=13178.410ms
+executed | mc number | vertex num | total mc size | mc rate (K/s) | data rate (MB/s)
+1 s | 0 | 0 | 0 | 0 | 0
+2 s | 0 | 0 | 0 | 0 | 0

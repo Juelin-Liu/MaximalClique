@@ -16,6 +16,8 @@
 #include <sys/time.h>
 #include <thread>
 #include <chrono>
+#include <iomanip>
+
 #define REPORT_ELAPSE 1
 #define MAX_REPORT_TIME 100000
 #define SIMD_STATE 4 // 0:none, 2:scalar2x, 4:simd4x

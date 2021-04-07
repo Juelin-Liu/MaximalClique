@@ -162,46 +162,46 @@ void BPMaximalClique::Tomita(std::vector<int> &R, UVertex P, UVertex X)
         return;
     }
 
-    // heuristic 2: choose a pivot u from P or X to maximize |N(u)|.
-    // int u = -1, max_deg = -1;
-    // for (int i = 0; i < P.deg; ++i) {
-    //     int cu_high = (sets_base[P.start + i] << PACK_SHIFT);
-    //     int cu_state = sets_state[P.start + i];
-    //     while (cu_state) {
-    //         int cu = (cu_high | __builtin_ctz(cu_state));
-    //         cu_state &= (cu_state - 1);
-    //         // if (max_deg < graph[cu].deg) {
-    //         //     max_deg = graph[cu].deg;
-    //         //     u = cu;
-    //         // }
-    //         if (max_deg < org_deg[cu]) {
-    //             max_deg = org_deg[cu];
-    //             u = cu;
-    //         }
-    //     }
-    // }
-    // for (int i = 0; i < X.deg; ++i) {
-    //     int cu_high = (sets_base[X.start + i] << PACK_SHIFT);
-    //     int cu_state = sets_state[X.start + i];
-    //     while (cu_state) {
-    //         int cu = (cu_high | __builtin_ctz(cu_state));
-    //         cu_state &= (cu_state - 1);
-    //         // if (max_deg < graph[cu].deg) {
-    //         //     max_deg = graph[cu].deg;
-    //         //     u = cu;
-    //         // }
-    //         if (max_deg < org_deg[cu]) {
-    //             max_deg = org_deg[cu];
-    //             u = cu;
-    //         }
-    //     }
-    // }
+    //heuristic 2: choose a pivot u from P or X to maximize |N(u)|.
+    int u = -1, max_deg = -1;
+    for (int i = 0; i < P.deg; ++i) {
+        int cu_high = (sets_base[P.start + i] << PACK_SHIFT);
+        int cu_state = sets_state[P.start + i];
+        while (cu_state) {
+            int cu = (cu_high | __builtin_ctz(cu_state));
+            cu_state &= (cu_state - 1);
+            // if (max_deg < graph[cu].deg) {
+            //     max_deg = graph[cu].deg;
+            //     u = cu;
+            // }
+            if (max_deg < org_deg[cu]) {
+                max_deg = org_deg[cu];
+                u = cu;
+            }
+        }
+    }
+    for (int i = 0; i < X.deg; ++i) {
+        int cu_high = (sets_base[X.start + i] << PACK_SHIFT);
+        int cu_state = sets_state[X.start + i];
+        while (cu_state) {
+            int cu = (cu_high | __builtin_ctz(cu_state));
+            cu_state &= (cu_state - 1);
+            // if (max_deg < graph[cu].deg) {
+            //     max_deg = graph[cu].deg;
+            //     u = cu;
+            // }
+            if (max_deg < org_deg[cu]) {
+                max_deg = org_deg[cu];
+                u = cu;
+            }
+        }
+    }
     // heuristic 3: choose the first vertex from P as the pivot.
-    int u;
-    if (X.deg > 0)
-        u = (sets_base[X.start] << PACK_SHIFT) | __builtin_ctz(sets_state[X.start]);
-    else
-        u = (sets_base[P.start] << PACK_SHIFT) | __builtin_ctz(sets_state[P.start]);
+    // int u;
+    // if (X.deg > 0)
+    //     u = (sets_base[X.start] << PACK_SHIFT) | __builtin_ctz(sets_state[X.start]);
+    // else
+    //     u = (sets_base[P.start] << PACK_SHIFT) | __builtin_ctz(sets_state[P.start]);
 
     int N_u_idx = graph[u].start, N_u_end = graph[u].start + graph[u].deg;
 
@@ -385,7 +385,8 @@ void BPMaximalClique::report_mc_num()
     double counter = 0.0;
     long long last_mc_size = 0;
     long long last_mc_cnt = 0;
-    std::cout << "executed | mc number | vertex num | total mc size | mc rate (K/s) | data rate (MB/s)" << std::endl;
+    long long last_compressed_mc_size = 0;
+    std::cout << "executed |  mc number  | vertex num | total mc size | mc rate (K/s) | data (MB/s) | " << std::endl;
     for (;;)
     {
         std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
@@ -396,7 +397,14 @@ void BPMaximalClique::report_mc_num()
         }
         long long current_mc_size = total_mc_size;
         long long current_mc_cnt = mc_num;
-        std::cout << counter << " s | " << current_mc_cnt << " | " << u_cnt << " | " << current_mc_size << " | " << (current_mc_cnt - last_mc_cnt) / 1000 << " | " << (current_mc_size - last_mc_size) * 4 / 1000000 / REPORT_ELAPSE << std::endl;
+        double data_rate = (current_mc_size - last_mc_size) * 4 / 1000000 / REPORT_ELAPSE;
+        double mc_rate = (current_mc_cnt - last_mc_cnt) / 1000;
+        std::cout << std::setw(8) << counter << "s| ";
+        std::cout << std::setw(11) << current_mc_cnt << " | " ;
+        std::cout << std::setw(10) << u_cnt << " | " ;
+        std::cout << std::setw(13) << current_mc_size << " | " ;
+        std::cout << std::setw(13) << mc_rate << " | ";
+        std::cout << std::setw(11) << data_rate << " | " << std::endl;
         last_mc_size = current_mc_size;
         last_mc_cnt = current_mc_cnt;
     }

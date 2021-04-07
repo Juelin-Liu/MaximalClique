@@ -354,6 +354,7 @@ void LoiMaximalClique::Tomita(int depth, int mem_idx)
             {
                 mc_num++;
                 total_mc_size += depth + 2;
+                total_compressed_mc_size += root_vector_size;
                 if (pool_mc_idx + depth + 2 < PACK_NODE_POOL_SIZE)
                 {
                     memcpy(pool_mc + pool_mc_idx, R, (depth + 2) * sizeof(int));
@@ -494,14 +495,14 @@ long long LoiMaximalClique::maximal_clique_degen_onepunch()
         // choose the v with max triangles
         int pivot_index = build_matrix(u);
 
-        // bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
-        // int num = expand_ctz(get_nvec(0), get_stack(0), root_vector_size);
-        // int num = expand_avx2_compress(get_nvec(0), get_stack(0), root_vector_size);
-        #if __SIMD_LEVEL__ == 2
+// bitwise_andn(get_pvec(0), get_bitmap(pivot_index), get_nvec(0), aligned_root_vector_size);
+// int num = expand_ctz(get_nvec(0), get_stack(0), root_vector_size);
+// int num = expand_avx2_compress(get_nvec(0), get_stack(0), root_vector_size);
+#if __SIMD_LEVEL__ == 2
         int num = maskz_expand_avx2_compress(get_bitmap(pivot_index), get_pvec(0), simd_buffer, get_stack(0), root_vector_size);
-        #elif __SIMD_LEVEL__ == 0
+#elif __SIMD_LEVEL__ == 0
         int num = maskz_expand_ctz(get_bitmap(pivot_index), get_pvec(0), get_stack(0), root_vector_size);
-        #endif
+#endif
         stack_set_size[0] = num;
         dfs_pivot_serious_onepunch();
         int *next = get_stack(0);
@@ -793,7 +794,7 @@ void LoiMaximalClique::dfs_pivot_serious_onepunch()
         // compute the cliques
         // bitwise_and(get_bitmap(v_index), get_pvec(cur_depth - 1), get_pvec(cur_depth), aligned_root_vector_size);
         // bitwise_and(get_bitmap(v_index), get_xvec(cur_depth - 1), get_xvec(cur_depth), aligned_root_vector_size);
-        double_bitwise_and(get_bitmap(v_index), get_pvec(cur_depth - 1), get_xvec(cur_depth - 1), get_pvec(cur_depth),get_xvec(cur_depth), aligned_root_vector_size);
+        double_bitwise_and(get_bitmap(v_index), get_pvec(cur_depth - 1), get_xvec(cur_depth - 1), get_pvec(cur_depth), get_xvec(cur_depth), aligned_root_vector_size);
         if (all_zero(get_pvec(cur_depth), root_vector_size))
         {
             // declare maximal clique is found
@@ -996,7 +997,9 @@ void LoiMaximalClique::report_mc_num()
     double counter = 0.0;
     long long last_mc_size = 0;
     long long last_mc_cnt = 0;
-    std::cout << "executed | mc number | vertex num | total mc size | mc rate (K/s) | data rate (MB/s)" << std::endl;
+    long long last_compressed_mc_size = 0;
+    std::cout << std::setw(15);
+    std::cout << "executed |  mc number  | vertex num | total mc size | mc rate (K/s) | data (MB/s) | Xdata (MB/s) | current X ratio | Avg X ratio |" << std::endl;
     for (;;)
     {
         std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
@@ -1006,32 +1009,24 @@ void LoiMaximalClique::report_mc_num()
             break;
         }
         long long current_mc_size = total_mc_size;
+        long long current_compressed_mc_size = total_compressed_mc_size;
         long long current_mc_cnt = mc_num;
-        std::cout << counter << " s | " << current_mc_cnt << " | " << u_cnt << " | " << current_mc_size << " | " << (current_mc_cnt - last_mc_cnt) / 1000 << " | " << (current_mc_size - last_mc_size) * 4 / 1000000 / REPORT_ELAPSE << std::endl;
+        double data_rate = (current_mc_size - last_mc_size) * 4 / 1000000 / REPORT_ELAPSE;
+        double compressed_data_rate = (current_compressed_mc_size - last_compressed_mc_size) / 1000000;
+        double mc_rate = (current_mc_cnt - last_mc_cnt) / 1000;
+        std::cout << std::setw(8) << counter << "s| ";
+        std::cout << std::setw(11) << current_mc_cnt << " | " ;
+        std::cout << std::setw(10) << u_cnt << " | " ;
+        std::cout << std::setw(13) << current_mc_size << " | " ;
+        std::cout << std::setw(13) << mc_rate << " | ";
+        std::cout << std::setw(11) << data_rate << " | " ;
+        std::cout << std::setw(12) << compressed_data_rate << " | " ;
+        std::cout << std::setw(15) << data_rate / compressed_data_rate << " | ";
+        std::cout << std::setw(11) << (double)(total_mc_size * 4) / (double)total_compressed_mc_size << " | "<< std::endl;
         last_mc_size = current_mc_size;
+        last_compressed_mc_size = current_compressed_mc_size;
         last_mc_cnt = current_mc_cnt;
     }
-    // std::cout << "executed | mc number | vertex num | current root degree | current root triangles | total mc size | mining speed (mc/s) | data rate (MB/s)" << std::endl;
-    // for (;;)
-    // {
-    //     std::this_thread::sleep_for(std::chrono::seconds(REPORT_ELAPSE));
-    //     counter += REPORT_ELAPSE;
-    //     if (counter > MAX_REPORT_TIME)
-    //     {
-    //         break;
-    //     }
-    //     long long current_mc_size = total_mc_size;
-    //     long long current_mc_cnt = mc_num;
-    //     std::cout << counter << " s | " << current_mc_cnt << " | " << u_cnt << " | " << root_deg << " | " << root_triangle_cnt << " | " << current_mc_size << " | " << current_mc_cnt - last_mc_cnt << " | " << (current_mc_size - last_mc_size) * 4 / 1000 / 1000 / REPORT_ELAPSE << std::endl;
-    //     last_mc_size = current_mc_size;
-    //     last_mc_cnt = current_mc_cnt;
-    //     // std::string ssize = to_string(stack_set_size, cur_depth);
-    //     // std::string psize = to_string(pivot_inter_cnt, cur_depth);
-    //     // std::cout << "stack sizes: \n"
-    //     //           << ssize << std::endl;
-    //     // std::cout << "pivot intersections: \n"
-    //     //           << psize << std::endl;
-    // }
 }
 
 std::string LoiMaximalClique::matrix_to_string()

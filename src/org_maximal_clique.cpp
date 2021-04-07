@@ -244,25 +244,25 @@ void OrgMaximalClique::Tomita(std::vector<int> &R, UVertex P, UVertex X)
     }
 
     // heuristic 1: choose a pivot u from P or X to maximize |P and N(u)|.
-    // int u = -1, max_inter_cnt = -1;
-    // for (int i = 0; i < P.deg; ++i) {
-    //     int cu = pool_sets[P.start + i];
-    //     int inter_cnt = intersect_count(pool_sets + P.start, P.deg,
-    //             pool_edges + graph[cu].start, graph[cu].deg);
-    //     if (max_inter_cnt < inter_cnt) {
-    //         max_inter_cnt = inter_cnt;
-    //         u = cu;
-    //     }
-    // }
-    // for (int i = 0; i < X.deg; ++i) {
-    //     int cu = pool_sets[X.start + i];
-    //     int inter_cnt = intersect_count(pool_sets + X.start, X.deg,
-    //             pool_edges + graph[cu].start, graph[cu].deg);
-    //     if (max_inter_cnt < inter_cnt) {
-    //         max_inter_cnt = inter_cnt;
-    //         u = cu;
-    //     }
-    // }
+    int u = -1, max_inter_cnt = -1;
+    for (int i = 0; i < P.deg; ++i) {
+        int cu = pool_sets[P.start + i];
+        int inter_cnt = intersect_count(pool_sets + P.start, P.deg,
+                pool_edges + graph[cu].start, graph[cu].deg);
+        if (max_inter_cnt < inter_cnt) {
+            max_inter_cnt = inter_cnt;
+            u = cu;
+        }
+    }
+    for (int i = 0; i < X.deg; ++i) {
+        int cu = pool_sets[X.start + i];
+        int inter_cnt = intersect_count(pool_sets + X.start, X.deg,
+                pool_edges + graph[cu].start, graph[cu].deg);
+        if (max_inter_cnt < inter_cnt) {
+            max_inter_cnt = inter_cnt;
+            u = cu;
+        }
+    }
 
     // heuristic 2: choose a pivot u from P or X to maximize |N(u)|.
     // int u = -1, max_deg = -1;
@@ -282,11 +282,11 @@ void OrgMaximalClique::Tomita(std::vector<int> &R, UVertex P, UVertex X)
     // }
 
     // heuristic 3: choose the first vertex from P as the pivot.
-    int u;
-    if (X.deg > 0)
-        u = pool_sets[X.start];
-    else
-        u = pool_sets[P.start];
+    // int u;
+    // if (X.deg > 0)
+    //     u = pool_sets[X.start];
+    // else
+    //     u = pool_sets[P.start];
 
     // only need to enumerate verices in P - N(u).
     int *N_u_ptr = pool_edges + graph[u].start;
