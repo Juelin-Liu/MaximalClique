@@ -1,5 +1,5 @@
 # CliqueX
-Faster Maximal Clique Algorithm
+Finding Maximal Cliques Fast
 
 ### Project Structure
 - `src` directory contains the source code. 
@@ -67,7 +67,7 @@ This algorithm checks all cliques in the graph. It conducts a DFS on each vertex
 
 If P is not empty, R can be enlarged by adding another vertex from P, so R is not maximal. If X is not empty, this clique in R must has been explored in the previous search, so it is also not maximal. That's why it reports R as maximal only when both P and X are empty.
 
-### Pivoting Vertex (1973) - Do less
+### Pivoting Vertex (1973) - Do Less
 
 This algorithm is inefficient. It needs to make a recursive call on every single clique. A remedy is to choose a pivoting vertex, and not visiting its neighbors at the current depth.
 
@@ -84,7 +84,7 @@ algorithm BK-Pivot(R, P, X) is
         X := X ⋃ {v}
 ```
 
-### Tomita (2006) - Do even less
+### Tomita (2006) - Do Even Less
 
 If the pivot is chosen to minimize the number of recursive calls made by the algorithm, good things can happen.
 
@@ -102,9 +102,9 @@ algorithm Tomita(R, P, X) is
         X := X ⋃ {v}
 ```
 
-### Degeneracy Order (2011) - Plan ahead, do much less later.
+### Degeneracy (2011) - Plan Ahead, Do Much Less In the Future.
 
-When visiting a vertex u with high degree, we hope that its candidate set P is small so that it can be handled easily. To make P small, it means we need to visit many vertexes in N(u) before visiting u so we can remove them from P by the time visiting u. We can do this for one vertex easily. But if we want to achieve global optimal, we need to find an order for visiting each vertex and this is where degeneracy came into play.  
+When visiting a vertex u with high degree, we hope that its candidate set P is small so it can be handled easily. To make P small, it means we need to visit many vertexes in N(u) before visiting u and we can remove them from P by the time visiting u. We can do this for one vertex easily. But if we want to achieve global optimal, we need to find an order for visiting each vertex and this is where degeneracy came into play.  
 
 > The degeneracy of a graph G is the smallest number d such that every subgraph of G has a vertex with degree d or less. Every graph has a degeneracy ordering, an ordering of the vertices such that each vertex has d or fewer neighbors that come later in the ordering; a degeneracy ordering may be found in linear time by repeatedly selecting the vertex of minimum degree among the remaining vertices. 
 
@@ -122,7 +122,7 @@ algorithm Degeneracy(G) is
         X := X ⋃ {v}
 ```
 
-### CliqueX (2021) - Do it fast
+### CliqueX (2021) - Do It Fast
 
 Glad you have read to this point because here is what this project really about.
 
@@ -145,7 +145,7 @@ When visiting vertex u, P and X are initialized to bitmaps with length |N(u)|. P
 
 Modern CPUs provide SIMD intrinsics that handle 128, 256, or even 512 bits in one instruction. In this case, the SIMD instructions allow intersecting two bit-arrays within one cycle if the degree of the root vertex is smaller than the number of bits that the CPU can handle. 
 
-For selecting the pivot vertex, there is also good news. Since it only interests in finding the pivot vertex v that maximizes |P ⋂ N(v)|, we don’t need to explore which positions are 1s, instead, we only need to count the number of 1 bit in the result. The  `_mm_popcnt_u64` intrinsic counts 64 bits in one instruction. 
+For selecting the pivot vertex, there is also good news. Since it only interests in finding the pivot vertex v that maximizes |P ⋂ N(v)|, we don’t need to explore which positions are 1s, instead, we only need to count the number of 1 bit in the result. This can be done using  `_mm_popcnt_u64` intrinsic, which counts number of 1s in 64 bits in one instruction. 
 
 Now, the set intersection is in O(|N(u)|). However, it is more like in O(1) given the amount of bits the CPU can handle using SIMD instructions. 
 
