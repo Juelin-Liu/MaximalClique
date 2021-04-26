@@ -45,11 +45,11 @@ This project proposed a new DFS backtracking algorithm build on top of [Local On
 
 ### Bron-Kerbosch (1973) - Worst Case Optimal
 
-The core part of Bron-Kerbosch algorithm consists of three arrays: R, P, and X.
+The Bron-Kerbosch algorithm keeps three arrays: R, P, and X.
 
-R contains all vertexes the current DFS tree path.
-P contains all vertexes that is connected to all vertex in R.
-X contains all vertexes that has been fully explored.
+R contains all vertexes in the current DFS path.
+P contains all vertexes that are connected to all vertex in R.
+X contains all vertexes that have been fully explored.
 
 Initially, R is empty, P contains all vertexes in the graph, and X is empty.
 
@@ -63,15 +63,15 @@ algorithm BronKerbosch(R, P, X) is
         P := P \ {v}
         X := X ⋃ {v}
 ```
-This algorithm checks all cliques in the graph. It conducts a DFS on each vertex in the graph with backtracking. It keeps the vertexes that form a clique in R, using P and X to indicate if the clique in R is maximal.
+Essentially, this algorithm checks all the cliques in the graph and filters out those that are not maximal. It keeps the vertexes that form a clique in R, using P and X to indicate if the clique in R is maximal.
 
-If P is not empty, R can be enlarged by adding another vertex from P, so R is not maximal. If X is not empty, this clique in R must has been explored in the previous search, so it is also not maximal. That's why it reports R as maximal only when both P and X are empty.
+If P is not empty, R can be enlarged by adding another vertex from P, so R is not maximal. If X is not empty, the clique formed by R was explored in the previous search. Thus, it reports R as maximal only when both P and X are empty.
 
 ### Pivoting Vertex (1973) - Do Less
 
-This algorithm is inefficient. It needs to make a recursive call on every single clique. A remedy is to choose a pivoting vertex, and not visiting its neighbors at the current depth.
+The basic algorithm is inefficient. It needs to check every single clique. A remedy is to choose a pivoting vertex, and not visiting its neighbors at the current depth.
 
-> Bron and Kerbosch introduced a variant of the algorithm involving a "pivot vertex" u, chosen from P (or more generally, as later investigators realized, from P ⋃ X). Any maximal clique must include either u or one of its non-neighbors, for otherwise the clique could be augmented by adding u to it. Therefore, only u and its non-neighbors need to be tested as the choices for the vertex v that is added to R in each recursive call to the algorithm. In pseudocode:
+> Bron and Kerbosch introduced a variant of the algorithm that uses a "pivot vertex" u, chosen from P (or more generally, as later investigators realized, from P ⋃ X). Any maximal clique must include either u or one of its non-neighbors, for otherwise the clique could be augmented by adding u to it. Therefore, only u and its non-neighbors need to be tested as the choices for the vertex v that is added to R in each recursive call to the algorithm. In pseudocode:
 
 ```
 algorithm BK-Pivot(R, P, X) is
