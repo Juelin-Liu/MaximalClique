@@ -5,7 +5,7 @@ Finding Maximal Cliques Fast
 - `src` directory contains the source code. 
     - `org_maximal_clique` contains the naive implementation.
     - `bp_maximal_clique` contains the current state-of-the-art implementation.
-    - `loi_maximal_clique` contains the this `CliqueX` implementation.`
+    - `loi_maximal_clique` contains the `CliqueX` implementation.
 
 To switch between method, change the class type for the variable `mc` in `mc.cpp`.
 
